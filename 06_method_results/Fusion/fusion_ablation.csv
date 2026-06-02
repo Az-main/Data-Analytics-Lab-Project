@@ -1,0 +1,5 @@
+fusion_rule,selected_as_best,selection_policy
+average,True,pre-specified; no test-label tuning
+max,False,reported ablation
+rank_average,False,reported ablation
+weighted_average,False,validation-statistical weights

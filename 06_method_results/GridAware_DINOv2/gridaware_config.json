@@ -1,0 +1,18 @@
+{
+  "method": "GridAware DINOv2",
+  "feature_backend": "fallback_patch_stats",
+  "region_size": 6,
+  "region_size_candidates": [
+    4,
+    6,
+    8
+  ],
+  "topk_candidates": [
+    "top1",
+    "top5",
+    "top10",
+    "mean",
+    "max"
+  ],
+  "selection_policy": "validation/good only; default saved run uses 6x6 top5"
+}

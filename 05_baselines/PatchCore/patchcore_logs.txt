@@ -1,0 +1,1 @@
+PatchCore-style patch nearest-neighbor memory completed with the feature backend listed in the config.

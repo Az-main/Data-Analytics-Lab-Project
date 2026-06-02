@@ -1,0 +1,1 @@
+Anomalib was not assumed by this local notebook. The saved backend is a deterministic proxy so the pipeline remains executable. Do not report these rows as official EfficientAD unless rerun with Anomalib.

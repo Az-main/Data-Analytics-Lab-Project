@@ -1,0 +1,13 @@
+Qualitative failure analysis
+============================
+
+Cases are selected from test scores after fitting thresholds by score sweep for display.
+At least one logical and one structural anomaly are included when available.
+Failure explanations should be refined after visual inspection of the generated grids.
+
+Category-level observations:
+- breakfast_box: inspect score overlap between good, logical, and structural rows in category_failure_analysis.csv.
+- juice_bottle: inspect score overlap between good, logical, and structural rows in category_failure_analysis.csv.
+- pushpins: inspect score overlap between good, logical, and structural rows in category_failure_analysis.csv.
+- screw_bag: inspect score overlap between good, logical, and structural rows in category_failure_analysis.csv.
+- splicing_connectors: inspect score overlap between good, logical, and structural rows in category_failure_analysis.csv.

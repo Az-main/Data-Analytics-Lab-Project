@@ -1,0 +1,17 @@
+topk,selection_basis,selected,source,region_size,k,selection_policy,fusion_rule,selected_as_best
+top1,validation_good_stability,False,gridaware_ablation_topk.csv,,,,,
+top5,validation_good_stability,True,gridaware_ablation_topk.csv,,,,,
+top10,validation_good_stability,False,gridaware_ablation_topk.csv,,,,,
+mean,validation_good_stability,False,gridaware_ablation_topk.csv,,,,,
+max,validation_good_stability,False,gridaware_ablation_topk.csv,,,,,
+,validation_good_stability,False,gridaware_ablation_region_size.csv,4.0,,,,
+,validation_good_stability,True,gridaware_ablation_region_size.csv,6.0,,,,
+,validation_good_stability,False,gridaware_ablation_region_size.csv,8.0,,,,
+,,False,composition_hist_ablation_k.csv,,16.0,validation_good_stability,,
+,,True,composition_hist_ablation_k.csv,,32.0,validation_good_stability,,
+,,False,composition_hist_ablation_k.csv,,64.0,validation_good_stability,,
+,,False,composition_hist_ablation_k.csv,,128.0,validation_good_stability,,
+,,,fusion_ablation.csv,,,pre-specified; no test-label tuning,average,True
+,,,fusion_ablation.csv,,,reported ablation,max,False
+,,,fusion_ablation.csv,,,reported ablation,rank_average,False
+,,,fusion_ablation.csv,,,validation-statistical weights,weighted_average,False

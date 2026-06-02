@@ -1,0 +1,2 @@
+method,feature_backend,time_ms_per_image,memory_bank_size,memory_feature_dim,parameter_count
+DINOv2 PatchMemory,fallback_patch_stats,286.298506780516,50000,7,0

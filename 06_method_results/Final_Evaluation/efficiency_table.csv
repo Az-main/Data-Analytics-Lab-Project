@@ -1,0 +1,10 @@
+method,category,implementation_backend,time_ms_per_image,memory_bank_size,parameter_count,feature_backend,memory_feature_dim,region_memories,visual_words
+EfficientAD,breakfast_box,fallback_global_feature_teacher_student_proxy,63.936523442158,0,0,,,,
+EfficientAD,juice_bottle,fallback_global_feature_teacher_student_proxy,113.3118856771489,0,0,,,,
+EfficientAD,pushpins,fallback_global_feature_teacher_student_proxy,160.6192620052263,0,0,,,,
+EfficientAD,screw_bag,fallback_global_feature_teacher_student_proxy,32.577038154573856,0,0,,,,
+EfficientAD,splicing_connectors,fallback_global_feature_teacher_student_proxy,33.65974516138952,0,0,,,,
+PatchCore,,,275.37581820603793,50000,0,fallback_patch_stats,7.0,,
+DINOv2 PatchMemory,,,286.298506780516,50000,0,fallback_patch_stats,7.0,,
+GridAware DINOv2,,,106.9592539242041,1024128,0,fallback_patch_stats,,180.0,
+CompositionHistogram,,,61.84526663096588,1778,1024,fallback_patch_stats,,,32.0

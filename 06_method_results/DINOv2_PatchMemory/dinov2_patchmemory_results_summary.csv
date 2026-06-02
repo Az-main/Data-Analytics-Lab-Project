@@ -1,0 +1,4 @@
+method,anomaly_type,mean_auroc,mean_f1_max,categories,mean_inference_time_ms_per_image,memory_bank_size
+DINOv2 PatchMemory,logical,0.5795500812259804,0.6555960367714099,5,286.298506780516,50000.0
+DINOv2 PatchMemory,overall,0.6538581507052263,0.7738964086662019,5,286.298506780516,50000.0
+DINOv2 PatchMemory,structural,0.7435404078610388,0.7067512229692973,5,286.298506780516,50000.0

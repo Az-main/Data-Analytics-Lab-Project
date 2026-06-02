@@ -1,0 +1,2 @@
+method,feature_backend,time_ms_per_image,memory_bank_size,region_memories,parameter_count
+GridAware DINOv2,fallback_patch_stats,106.9592539242041,1024128,180,0

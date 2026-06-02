@@ -1,0 +1,11 @@
+{
+  "method": "PatchCore",
+  "feature_backend": "fallback_patch_stats",
+  "requested_backend": "auto",
+  "grid": 24,
+  "max_patches": 50000,
+  "include_xy": false,
+  "aggregate_mode": "top5",
+  "fit_split": "train/good only",
+  "validation_policy": "validation/good reserved for normalization or hyperparameter selection"
+}

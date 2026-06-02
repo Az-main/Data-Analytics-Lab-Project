@@ -1,0 +1,16 @@
+{
+  "method": "CompositionHistogram",
+  "feature_backend": "fallback_patch_stats",
+  "k_selected": 32,
+  "k_candidates": [
+    16,
+    32,
+    64,
+    128
+  ],
+  "scoring_models": [
+    "mahalanobis",
+    "cosine_to_mean",
+    "isolation_forest"
+  ]
+}

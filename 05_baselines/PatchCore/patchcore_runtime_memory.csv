@@ -1,0 +1,2 @@
+method,feature_backend,time_ms_per_image,memory_bank_size,memory_feature_dim,parameter_count
+PatchCore,fallback_patch_stats,275.37581820603793,50000,7,0

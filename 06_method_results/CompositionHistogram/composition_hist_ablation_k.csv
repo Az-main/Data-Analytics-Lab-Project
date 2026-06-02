@@ -1,0 +1,5 @@
+k,selected,selection_policy
+16,False,validation_good_stability
+32,True,validation_good_stability
+64,False,validation_good_stability
+128,False,validation_good_stability

@@ -1,0 +1,5 @@
+method: EfficientAD
+implementation_backend: fallback_global_feature_teacher_student_proxy
+strict_note: Install/use Anomalib EfficientAD for paper-ready reproduced EfficientAD numbers.
+fit_split: train/good only
+validation_policy: validation/good only for calibration or thresholds

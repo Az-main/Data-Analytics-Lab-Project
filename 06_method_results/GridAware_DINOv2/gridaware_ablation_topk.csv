@@ -1,0 +1,6 @@
+topk,selection_basis,selected
+top1,validation_good_stability,False
+top5,validation_good_stability,True
+top10,validation_good_stability,False
+mean,validation_good_stability,False
+max,validation_good_stability,False
