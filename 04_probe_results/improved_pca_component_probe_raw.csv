@@ -1,0 +1,11 @@
+category,defect_type,sample_id,feature_backend,kmeans_clusters,pca_foreground_components,note
+breakfast_box,logical_anomalies,000,fallback_patch_stats,4,6,Connected components on PCA/K-means patch maps are probe evidence only.
+breakfast_box,structural_anomalies,000,fallback_patch_stats,4,1,Connected components on PCA/K-means patch maps are probe evidence only.
+juice_bottle,logical_anomalies,000,fallback_patch_stats,4,2,Connected components on PCA/K-means patch maps are probe evidence only.
+juice_bottle,structural_anomalies,000,fallback_patch_stats,4,2,Connected components on PCA/K-means patch maps are probe evidence only.
+pushpins,logical_anomalies,000,fallback_patch_stats,4,9,Connected components on PCA/K-means patch maps are probe evidence only.
+pushpins,structural_anomalies,000,fallback_patch_stats,4,10,Connected components on PCA/K-means patch maps are probe evidence only.
+screw_bag,logical_anomalies,000,fallback_patch_stats,4,3,Connected components on PCA/K-means patch maps are probe evidence only.
+screw_bag,structural_anomalies,000,fallback_patch_stats,4,5,Connected components on PCA/K-means patch maps are probe evidence only.
+splicing_connectors,logical_anomalies,000,fallback_patch_stats,4,9,Connected components on PCA/K-means patch maps are probe evidence only.
+splicing_connectors,structural_anomalies,000,fallback_patch_stats,4,3,Connected components on PCA/K-means patch maps are probe evidence only.

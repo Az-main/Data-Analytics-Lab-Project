@@ -1,0 +1,23 @@
+Preprocessing protocol
+======================
+
+Raw data policy: Phase 1 is treated as read-only. No generated files are written there.
+Cleaned data root: D:\Anal Project Codex\Project_A_LOCO_AD\03_cleaned_data\loco_cleaned_letterbox_384
+Target size: 384x384
+Resize: aspect-ratio-preserving letterbox.
+Product interpolation: bilinear.
+Mask interpolation: nearest-neighbor, then all nonzero pixels are set to 255.
+
+Split policy:
+Train/good is reserved for fitting normal models only.
+Validation/good is reserved for thresholding, score normalization, and hyperparameter selection.
+Test images are reserved for final evaluation.
+Ground-truth masks are not used for model fitting.
+
+Audit counts:
+Product images only: 3651
+Ground-truth mask files only: 1246
+Total PNG files including masks: 4897
+Corrupted files: 0
+Wrong-size cleaned files: 0
+Non-binary cleaned masks: 0

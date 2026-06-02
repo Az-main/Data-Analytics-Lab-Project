@@ -1,0 +1,11 @@
+category,defect_type,feature_backend,count,mean,min,max
+breakfast_box,logical_anomalies,fallback_patch_stats,1,6.0,6,6
+breakfast_box,structural_anomalies,fallback_patch_stats,1,1.0,1,1
+juice_bottle,logical_anomalies,fallback_patch_stats,1,2.0,2,2
+juice_bottle,structural_anomalies,fallback_patch_stats,1,2.0,2,2
+pushpins,logical_anomalies,fallback_patch_stats,1,9.0,9,9
+pushpins,structural_anomalies,fallback_patch_stats,1,10.0,10,10
+screw_bag,logical_anomalies,fallback_patch_stats,1,3.0,3,3
+screw_bag,structural_anomalies,fallback_patch_stats,1,5.0,5,5
+splicing_connectors,logical_anomalies,fallback_patch_stats,1,9.0,9,9
+splicing_connectors,structural_anomalies,fallback_patch_stats,1,3.0,3,3

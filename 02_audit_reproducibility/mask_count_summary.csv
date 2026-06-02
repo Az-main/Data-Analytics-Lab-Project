@@ -1,0 +1,11 @@
+category,defect_type,count
+breakfast_box,logical_anomalies,83
+breakfast_box,structural_anomalies,90
+juice_bottle,logical_anomalies,154
+juice_bottle,structural_anomalies,95
+pushpins,logical_anomalies,307
+pushpins,structural_anomalies,81
+screw_bag,logical_anomalies,161
+screw_bag,structural_anomalies,82
+splicing_connectors,logical_anomalies,108
+splicing_connectors,structural_anomalies,85

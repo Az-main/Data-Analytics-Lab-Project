@@ -1,0 +1,37 @@
+{
+  "seed": 42,
+  "target_size": 384,
+  "raw_data_root": "D:\\Anal Project Codex\\Phase 1",
+  "project_root": "D:\\Anal Project Codex\\Project_A_LOCO_AD",
+  "clean_root": "D:\\Anal Project Codex\\Project_A_LOCO_AD\\03_cleaned_data\\loco_cleaned_letterbox_384",
+  "categories": [
+    "breakfast_box",
+    "juice_bottle",
+    "pushpins",
+    "screw_bag",
+    "splicing_connectors"
+  ],
+  "resize": {
+    "method": "aspect_ratio_preserving_letterbox",
+    "product_interpolation": "bilinear",
+    "mask_interpolation": "nearest",
+    "mask_values": [
+      0,
+      255
+    ]
+  },
+  "counts": {
+    "product_images": 3651,
+    "mask_files": 1246,
+    "total_png": 4897,
+    "corrupted": 0,
+    "wrong_size_cleaned": 0,
+    "non_binary_masks_cleaned": 0
+  },
+  "expected_counts": {
+    "product_images": 3651,
+    "mask_files": 1246,
+    "total_png": 4897,
+    "corrupted": 0
+  }
+}

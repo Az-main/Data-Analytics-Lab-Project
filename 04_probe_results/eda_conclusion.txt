@@ -1,0 +1,1 @@
+EDA was run on the cleaned letterbox dataset. Test anomalies are inspected here for descriptive EDA only, not for model tuning. The visible variation in object layout and localized defect masks supports patch-composition modeling. These plots do not justify simple component counting as a reliable final method.
