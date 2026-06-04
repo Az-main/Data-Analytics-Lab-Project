@@ -5,31 +5,31 @@
       "method": "EfficientAD",
       "val_mu": 1.080435603563903,
       "val_sigma": 0.21212914953573458,
-      "source_file": "D:\\Anal Project Codex\\Project_A_LOCO_AD\\05_baselines\\EfficientAD\\efficientad_scores.csv"
+      "source_file": "/content/lab/Project_A_LOCO_AD/05_baselines/EfficientAD/efficientad_scores.csv"
     },
     {
       "method": "PatchCore",
-      "val_mu": 0.03679012885981191,
-      "val_sigma": 0.00892546082290549,
-      "source_file": "D:\\Anal Project Codex\\Project_A_LOCO_AD\\05_baselines\\PatchCore\\patchcore_scores.csv"
+      "val_mu": 0.4748994500985813,
+      "val_sigma": 0.08447122030642804,
+      "source_file": "/content/lab/Project_A_LOCO_AD/05_baselines/PatchCore/patchcore_scores.csv"
     },
     {
       "method": "DINOv2 PatchMemory",
-      "val_mu": 0.03679012885981191,
-      "val_sigma": 0.00892546082290549,
-      "source_file": "D:\\Anal Project Codex\\Project_A_LOCO_AD\\06_method_results\\DINOv2_PatchMemory\\dinov2_patchmemory_scores.csv"
+      "val_mu": 0.4748994500985813,
+      "val_sigma": 0.08447122030642804,
+      "source_file": "/content/lab/Project_A_LOCO_AD/06_method_results/DINOv2_PatchMemory/dinov2_patchmemory_scores.csv"
     },
     {
       "method": "GridAware DINOv2",
-      "val_mu": 0.029153376283443083,
-      "val_sigma": 0.009170558693337104,
-      "source_file": "D:\\Anal Project Codex\\Project_A_LOCO_AD\\06_method_results\\GridAware_DINOv2\\gridaware_scores.csv"
+      "val_mu": 0.4380494856255653,
+      "val_sigma": 0.09532881664385556,
+      "source_file": "/content/lab/Project_A_LOCO_AD/06_method_results/GridAware_DINOv2/gridaware_scores.csv"
     },
     {
       "method": "CompositionHistogram",
-      "val_mu": 5.177939387223304,
-      "val_sigma": 1.3878335459339834,
-      "source_file": "D:\\Anal Project Codex\\Project_A_LOCO_AD\\06_method_results\\CompositionHistogram\\composition_hist_scores.csv"
+      "val_mu": 4.621504881663961,
+      "val_sigma": 1.188159590155288,
+      "source_file": "/content/lab/Project_A_LOCO_AD/06_method_results/CompositionHistogram/composition_hist_scores.csv"
     }
   ],
   "methods": [

@@ -1,2 +1,2 @@
 method,feature_backend,time_ms_per_image,memory_bank_size,memory_feature_dim,parameter_count
-PatchCore,fallback_patch_stats,275.37581820603793,50000,7,0
+PatchCore,dinov2-small,370.7748128739961,50000,384,0

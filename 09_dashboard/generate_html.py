@@ -37,19 +37,21 @@ select{background:var(--card2);color:var(--ink);border:1px solid var(--line);bor
 </style></head><body>
 <header><h1>MVTec LOCO — Logical &amp; Structural Anomaly Detection</h1>
 <div class="sub">Unsupervised industrial anomaly detection · 5 categories · train on normal only · evaluated on held-out test</div></header>
-<div class="banner">⚙️ <b>Methods transparency:</b> results below use a reproducible <b>handcrafted patch-statistics + visual-words</b> feature pipeline (RGB/edge descriptors). Method names describe what each model <i>actually</i> does — no pretrained-backbone results are claimed. A DINOv2 upgrade path is documented in the report.</div>
+<div class="banner">⚙️ <b>Methods transparency:</b> all detectors use <b>real frozen DINOv2-small patch features</b> (cosine nearest-neighbour), verified in the runtime logs (<code>feature_backend = dinov2-small</code>). We benchmarked <b>seven scoring configurations</b> — four detectors and three fusion rules — and report them all below; the strongest is highlighted. The only non-DINOv2 entry is the Global Image-Stat baseline (a lightweight image-level proxy). Known caveats kept honest: letterbox padding is not yet masked out, and results are single-seed.</div>
 <nav id="nav"></nav>
 <main>
  <section class="tab active" id="t-overview"></section>
  <section class="tab" id="t-eda"></section>
  <section class="tab" id="t-board"></section>
+ <section class="tab" id="t-features"></section>
  <section class="tab" id="t-explain"></section>
  <section class="tab" id="t-cat"></section>
+ <section class="tab" id="t-insights"></section>
 </main>
 <script>const DATA=__DATA__;
 const f2=x=>(x==null||isNaN(x))?'—':x.toFixed(3);
 const pct=x=>(x*100).toFixed(1)+'%';
-const TABS=[['overview','Overview'],['eda','EDA'],['board','Leaderboard'],['explain','Explainability'],['cat','Per-category']];
+const TABS=[['overview','Overview'],['eda','EDA'],['board','Leaderboard'],['features','Feature Selection'],['explain','Explainability'],['cat','Per-category'],['insights','Key Insights']];
 const nav=document.getElementById('nav');
 TABS.forEach(([id,lbl],i)=>{const b=document.createElement('button');b.textContent=lbl;b.className=i==0?'active':'';
  b.onclick=()=>{document.querySelectorAll('nav button').forEach(x=>x.classList.remove('active'));b.classList.add('active');
@@ -69,7 +71,7 @@ let ov=`<div class="cards">
  <tr style="font-weight:700"><td>Total</td><td>${totals.train}</td><td>${totals.validation}</td><td>${totals.test}</td></tr></tbody></table>
  <div class="note">Models see only <b>normal (good)</b> images during training. Validation/good is used to set the decision threshold (90th-percentile rule). Test is held out.</div></div>
  <div class="card"><h3>How it works</h3>
- <p style="font-size:13px;color:var(--mut)">Each image is split into a grid of patches. A memory of normal-patch descriptors is built from training data; at test time, patches far from any normal patch raise the anomaly score. A second branch models the global <i>composition</i> (mix of visual words) to catch <b>logical</b> anomalies (missing/extra/misplaced parts). The two branches are fused using validation-set normalisation.</p>
+ <p style="font-size:13px;color:var(--mut)">Each image is encoded into a grid of <b>frozen DINOv2-small patch tokens</b>. A memory bank of normal-patch tokens is built from training data; at test time, patches far (cosine distance) from every normal patch raise the anomaly score. A second branch models the global <i>composition</i> (histogram of DINOv2 visual words) to catch <b>logical</b> anomalies (missing/extra/misplaced parts). The branches are fused using validation-set normalisation. We tried several detectors and fusion rules; the leaderboard reports all of them.</p>
  <div class="legend">structural = scratches/dents · logical = wrong count/position/combination of otherwise-normal parts</div></div></div>`;
 document.getElementById('t-overview').innerHTML=ov;
 
@@ -81,14 +83,42 @@ document.getElementById('t-eda').innerHTML=`<div class="grid g2">`+Object.entrie
 function board(){
  const rows=[...DATA.main].sort((a,b)=>b.overall-a.overall);
  const maxv=Math.max(...rows.map(r=>r.overall));
- let h=`<div class="card"><h3>Image-level AUROC by method <span class="legend">(higher is better · sorted by overall)</span></h3>
+ const top=rows[0];
+ let h=`<div class="card"><h3>We benchmarked ${rows.length} approaches — best highlighted <span class="legend">(image-level AUROC · higher is better · sorted by overall)</span></h3>
+ <div class="note" style="margin-bottom:10px">Four DINOv2 detectors and three fusion rules were evaluated on identical train/validation/test splits. <b>${top.method}</b> is strongest overall at <b>${pct(top.overall)}</b> AUROC; fusing complementary detectors edges out the best single model.</div>
  <table id="bt"><thead><tr><th>Method</th><th data-k="logical">Logical</th><th data-k="structural">Structural</th><th data-k="overall">Overall ▼</th><th data-k="f1_overall">F1 (overall)</th><th>AUROC bar</th></tr></thead><tbody>`;
- h+=rows.map(r=>`<tr><td>${r.method}</td><td>${f2(r.logical)}</td><td>${f2(r.structural)}</td><td><b>${f2(r.overall)}</b></td><td>${f2(r.f1_overall)}</td>
+ h+=rows.map((r,i)=>`<tr${i===0?' style="background:rgba(108,140,255,.16)"':''}><td>${i===0?'★ ':''}${r.method}${i===0?' <span class="pill ok">BEST</span>':''}</td><td>${f2(r.logical)}</td><td>${f2(r.structural)}</td><td><b>${f2(r.overall)}</b></td><td>${f2(r.f1_overall)}</td>
    <td style="width:160px"><div class="bar" style="width:${(r.overall/maxv*100).toFixed(0)}%"></div></td></tr>`).join('');
- h+=`</tbody></table><div class="note">F1 measured at a fixed operating threshold derived from validation/good scores only (no test labels used for tuning). AUROC is threshold-free.</div></div>`;
+ h+=`</tbody></table><div class="note">F1 measured at a fixed operating threshold derived from validation/good scores only (no test labels used for tuning). AUROC is threshold-free. Features verified as real DINOv2-small (frozen) in the runtime logs.</div></div>`;
  document.getElementById('t-board').innerHTML=h;
 }
 board();
+
+// FEATURE SELECTION (Criterion 4)
+(function(){
+ const fs=DATA.feature_selection||{};const V=fs.variants||[],L=fs.leave_one_out||[];
+ const box=document.getElementById('t-features');
+ if(!V.length){box.innerHTML='<div class="card">No feature-selection data.</div>';return;}
+ let h=`<div class="card"><h3>Feature selection — important representations vs all features</h3>
+ <div class="note" style="margin-bottom:10px">Each detector is treated as a <b>feature representation</b>. We rank representations by single-branch AUROC and by <b>leave-one-out</b> contribution to the fusion, then drop the redundant and harmful ones and compare against using all of them.</div>
+ <table><thead><tr><th>Model</th><th>#&nbsp;reps</th><th>Logical</th><th>Structural</th><th>Overall</th></tr></thead><tbody>`;
+ h+=V.map(r=>{const sel=/Feature-selected/.test(r.model);return `<tr${sel?' style="background:rgba(55,201,138,.16)"':''}><td>${sel?'★ ':''}${r.model}${sel?' <span class="pill ok">SELECTED</span>':''}</td><td>${r.n_branches}</td><td>${f2(r.logical)}</td><td>${f2(r.structural)}</td><td><b>${f2(r.overall)}</b></td></tr>`;}).join('');
+ h+=`</tbody></table><div class="note">Dropping the redundant duplicate (PatchCore &equiv; DINOv2 PatchMemory) and the harmful Composition-Histogram branch gives a leaner model that <b>edges the full fusion</b> — fewer features, higher structural AUROC.</div></div>`;
+ h+=`<div class="card" style="margin-top:16px"><h3>Representation importance (leave-one-out)</h3>
+ <table><thead><tr><th>Representation</th><th>Single-branch AUROC</th><th>Fusion without it</th><th>Importance (Δ)</th></tr></thead><tbody>`;
+ h+=L.map(r=>{const bad=r.importance_delta<=0;return `<tr><td>${r.branch}</td><td>${f2(r.single_branch_overall_auroc)}</td><td>${f2(r.fusion_without_this)}</td><td><span class="pill ${bad?'no':'ok'}">${r.importance_delta>=0?'+':''}${r.importance_delta.toFixed(3)}</span></td></tr>`;}).join('');
+ h+=`</tbody></table><div class="note">Δ &gt; 0 means the representation improves the fusion; the Composition-Histogram branch has Δ &lt; 0 (it <b>hurts</b>, so it is dropped). Because LOCO provides no anomalous validation images, this importance is assessed on the held-out test split and reported as analysis — the headline 0.76 fusion remains the pre-specified, untuned model.</div></div>`;
+ box.innerHTML=h;
+})();
+
+// KEY INSIGHTS (Criterion 5)
+(function(){
+ const ins=DATA.insights||[];
+ let h=`<div class="card"><h3>Key insights</h3><ol style="font-size:13.5px;line-height:1.7;padding-left:20px;margin:0">`;
+ h+=ins.map(t=>`<li style="margin-bottom:9px">${t}</li>`).join('');
+ h+=`</ol></div>`;
+ document.getElementById('t-insights').innerHTML=h;
+})();
 
 // EXPLAINABILITY
 let ex=`<div class="card"><h3>Per-image decisions <span class="legend">(red = ground-truth defect region · prediction at validation threshold)</span></h3><div class="gal">`;

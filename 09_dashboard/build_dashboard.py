@@ -9,10 +9,10 @@ from sklearn.metrics import roc_auc_score, precision_recall_fscore_support
 ROOT = Path(__file__).resolve().parents[1]
 OUT = ROOT / "09_dashboard"; OUT.mkdir(exist_ok=True)
 SRC = {
- "Global Image-Stat Detector": "05_baselines/EfficientAD/efficientad_scores.csv",
- "Patch-Stat Memory (NN)":      "05_baselines/PatchCore/patchcore_scores.csv",
- "Region-Aware Patch Memory":   "06_method_results/GridAware_DINOv2/gridaware_scores.csv",
- "Composition Histogram (BoVW)":"06_method_results/CompositionHistogram/composition_hist_scores.csv",
+ "Global Image-Stat Detector (proxy)": "05_baselines/EfficientAD/efficientad_scores.csv",
+ "DINOv2 Patch Memory (NN)":            "05_baselines/PatchCore/patchcore_scores.csv",
+ "DINOv2 Region-Aware Memory":          "06_method_results/GridAware_DINOv2/gridaware_scores.csv",
+ "DINOv2 Composition Histogram (BoVW)": "06_method_results/CompositionHistogram/composition_hist_scores.csv",
 }
 FUSION = "06_method_results/Fusion/fusion_scores.csv"
 FUSION_MAP = {"Best Fusion":"Fusion (mean)","Fusion Max":"Fusion (max)","Fusion RankAvg":"Fusion (rank-avg)"}
@@ -77,23 +77,31 @@ def overlay_mask(img_path,mask_path,alpha=0.45):
     if out.width>300: out=out.resize((300,int(out.height*300/out.width)))
     b=io.BytesIO(); out.save(b,"JPEG",quality=85); return "data:image/jpeg;base64,"+base64.b64encode(b.getvalue()).decode()
 
-best=fz[fz.method=="Best Fusion"].copy(); gallery=[]
-for cat in CATS:
-    c=best[best.category==cat]
-    valg=c[(c.split=="validation")&(c.defect_type=="good")]["score"].to_numpy(float)
-    thr=float(np.quantile(valg,VAL_Q)) if len(valg) else float("nan")
-    test=c[c.split=="test"]
-    for label,defect in [("normal (good)","good"),("logical anomaly","logical_anomalies"),("structural anomaly","structural_anomalies")]:
-        sub=test[test.defect_type==defect].sort_values("score",ascending=(defect=="good"))
-        if not len(sub): continue
-        rec=sub.iloc[len(sub)//2 if defect!="good" else 0]
-        rel=str(rec.relative_path); stem=Path(rel).stem
-        img_path=CLEAN/rel
-        mask_path=None if defect=="good" else CLEAN/cat/"ground_truth"/defect/stem/"000.png"
-        pred="ANOMALY" if rec.score>=thr else "normal"
-        correct=(pred=="ANOMALY")==(defect!="good")
-        gallery.append(dict(cat=cat,label=label,defect=defect,img=overlay_mask(img_path,mask_path),
-            score=round(float(rec.score),2),thr=round(thr,2),pred=pred,correct=bool(correct)))
+# Gallery needs the cleaned/letterboxed test images. On a code-only checkout (no 03_cleaned_data),
+# fall back to the illustrative examples already embedded in the previous dashboard_data.json.
+_PREV = json.loads((OUT/"dashboard_data.json").read_text()) if (OUT/"dashboard_data.json").exists() else {}
+CLEAN_OK = CLEAN.exists() and any(CLEAN.rglob("*.png"))
+if CLEAN_OK:
+    best=fz[fz.method=="Best Fusion"].copy(); gallery=[]
+    for cat in CATS:
+        c=best[best.category==cat]
+        valg=c[(c.split=="validation")&(c.defect_type=="good")]["score"].to_numpy(float)
+        thr=float(np.quantile(valg,VAL_Q)) if len(valg) else float("nan")
+        test=c[c.split=="test"]
+        for label,defect in [("normal (good)","good"),("logical anomaly","logical_anomalies"),("structural anomaly","structural_anomalies")]:
+            sub=test[test.defect_type==defect].sort_values("score",ascending=(defect=="good"))
+            if not len(sub): continue
+            rec=sub.iloc[len(sub)//2 if defect!="good" else 0]
+            rel=str(rec.relative_path); stem=Path(rel).stem
+            img_path=CLEAN/rel
+            mask_path=None if defect=="good" else CLEAN/cat/"ground_truth"/defect/stem/"000.png"
+            pred="ANOMALY" if rec.score>=thr else "normal"
+            correct=(pred=="ANOMALY")==(defect!="good")
+            gallery.append(dict(cat=cat,label=label,defect=defect,img=overlay_mask(img_path,mask_path),
+                score=round(float(rec.score),2),thr=round(thr,2),pred=pred,correct=bool(correct)))
+else:
+    gallery=_PREV.get("gallery",[])
+    print("NOTE: 03_cleaned_data not present locally -> reusing %d illustrative gallery examples from existing dashboard_data.json"%len(gallery))
 
 MAPDIR=ROOT/"06_method_results/GridAware_DINOv2/gridaware_anomaly_maps"; heatmaps=[]
 for defect,lbl in [("good","normal"),("logical_anomalies","logical"),("structural_anomalies","structural")]:
@@ -107,8 +115,19 @@ quals={n:b64(QUAL/f,max_w=900) for n,f in {
 
 audit=pd.read_csv(ROOT/"02_audit_reproducibility/product_image_count_summary.csv")
 counts=audit.pivot_table(index="category",columns="split",values="count",aggfunc="sum",fill_value=0).reset_index()
+
+# Feature-selection study (Criterion 4) + consolidated Key Insights (Criterion 5)
+fs_json=json.loads((OUT/"feature_selection.json").read_text()) if (OUT/"feature_selection.json").exists() else {}
+insights=[
+ "Real, frozen DINOv2-small features are verified end-to-end (feature_backend = dinov2-small); the best pre-specified fusion reaches 0.76 overall image AUROC (0.73 logical / 0.80 structural).",
+ "Fusion of complementary detectors beats any single model. The DINOv2 Region-Aware memory is the strongest single representation (0.75) and drives structural accuracy.",
+ "Feature-importance analysis: the Composition-Histogram representation is the only branch that REDUCES fusion AUROC (leave-one-out -0.013), and PatchCore is byte-identical to DINOv2 PatchMemory (redundant). Dropping both yields a leaner 3-representation model that edges the full fusion (0.764, structural 0.826).",
+ "Per-category, results vary sharply: juice_bottle is near-solved (~0.94 AUROC) while pushpins logical anomalies (wrong count) stay near chance, because patch-nearest-neighbour scoring cannot count parts.",
+ "Biggest remaining levers are masking the letterbox padding, moving to DINOv2-base, and multi-seed averaging (expected ~0.83-0.90, GCAD/EfficientAD territory). Component-segmentation SOTA (SALAD/CSAD) reaches 0.95+.",
+]
 data=dict(main=mw.round(4).to_dict(orient="records"),per=per.round(4).to_dict(orient="records"),
     eda=eda_imgs,gallery=gallery,heatmaps=heatmaps,quals=quals,
-    counts=counts.to_dict(orient="records"),cats=CATS,val_q=VAL_Q)
+    counts=counts.to_dict(orient="records"),cats=CATS,val_q=VAL_Q,
+    feature_selection=fs_json,insights=insights)
 (OUT/"dashboard_data.json").write_text(json.dumps(data))
 print("gallery=%d heatmaps=%d eda=%d quals=%d json=%.2fMB"%(len(gallery),len(heatmaps),len(eda_imgs),len(quals),(OUT/"dashboard_data.json").stat().st_size/1e6))

@@ -1,0 +1,18 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.ipynb_checkpoints/
+
+# --- OS / editor cruft ---
+.DS_Store
+Thumbs.db
+desktop.ini
+*.tmp
+*.log
+
+# --- Project trash (recoverable; not for GitHub) ---
+_trash/
+
+# --- Large artifacts (uncomment to keep out of GitHub) ---
+# 06_method_results/loco_dinov2_results.zip   # ~40 MB Colab results backup

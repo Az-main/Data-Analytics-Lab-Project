@@ -1,0 +1,89 @@
+{
+  "variants": [
+    {
+      "model": "All features (5, incl. duplicate)",
+      "n_branches": 5,
+      "branches": "Global Image-Stat (proxy) + DINOv2 Patch Memory + DINOv2 PatchMemory (dup) + DINOv2 Region-Aware + DINOv2 Composition Hist",
+      "logical": 0.7314,
+      "structural": 0.8038,
+      "overall": 0.7609
+    },
+    {
+      "model": "Drop redundant duplicate (4 unique)",
+      "n_branches": 4,
+      "branches": "Global Image-Stat (proxy) + DINOv2 Patch Memory + DINOv2 Region-Aware + DINOv2 Composition Hist",
+      "logical": 0.7254,
+      "structural": 0.7797,
+      "overall": 0.7472
+    },
+    {
+      "model": "Feature-selected (3: drop redundant + harmful)",
+      "n_branches": 3,
+      "branches": "Global Image-Stat (proxy) + DINOv2 Patch Memory + DINOv2 Region-Aware",
+      "logical": 0.7181,
+      "structural": 0.8261,
+      "overall": 0.7638
+    },
+    {
+      "model": "Strong DINOv2 memories only (2)",
+      "n_branches": 2,
+      "branches": "DINOv2 Patch Memory + DINOv2 Region-Aware",
+      "logical": 0.7179,
+      "structural": 0.7786,
+      "overall": 0.7413
+    },
+    {
+      "model": "Best single representation",
+      "n_branches": 1,
+      "branches": "DINOv2 Region-Aware",
+      "logical": 0.7301,
+      "structural": 0.7836,
+      "overall": 0.7503
+    }
+  ],
+  "leave_one_out": [
+    {
+      "branch": "DINOv2 Region-Aware",
+      "single_branch_overall_auroc": 0.7503,
+      "fusion_without_this": 0.7411,
+      "importance_delta": 0.0197
+    },
+    {
+      "branch": "DINOv2 Patch Memory",
+      "single_branch_overall_auroc": 0.7244,
+      "fusion_without_this": 0.7472,
+      "importance_delta": 0.0137
+    },
+    {
+      "branch": "DINOv2 PatchMemory (dup)",
+      "single_branch_overall_auroc": 0.7244,
+      "fusion_without_this": 0.7472,
+      "importance_delta": 0.0137
+    },
+    {
+      "branch": "Global Image-Stat (proxy)",
+      "single_branch_overall_auroc": 0.6548,
+      "fusion_without_this": 0.7178,
+      "importance_delta": 0.0431
+    },
+    {
+      "branch": "DINOv2 Composition Hist",
+      "single_branch_overall_auroc": 0.5757,
+      "fusion_without_this": 0.7737,
+      "importance_delta": -0.0129
+    }
+  ],
+  "important_branches": [
+    "Global Image-Stat (proxy)",
+    "DINOv2 Patch Memory",
+    "DINOv2 Region-Aware"
+  ],
+  "dropped": [
+    "DINOv2 PatchMemory (dup)",
+    "DINOv2 Composition Hist"
+  ],
+  "harmful": [
+    "DINOv2 Composition Hist"
+  ],
+  "best_single": "DINOv2 Region-Aware"
+}

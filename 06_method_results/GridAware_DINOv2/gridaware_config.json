@@ -1,6 +1,6 @@
 {
   "method": "GridAware DINOv2",
-  "feature_backend": "fallback_patch_stats",
+  "feature_backend": "dinov2-small",
   "region_size": 6,
   "region_size_candidates": [
     4,

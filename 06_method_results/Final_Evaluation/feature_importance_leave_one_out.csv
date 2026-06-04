@@ -1,0 +1,6 @@
+branch,single_branch_overall_auroc,fusion_without_this,importance_delta
+DINOv2 Region-Aware,0.7503,0.7411,0.0197
+DINOv2 Patch Memory,0.7244,0.7472,0.0137
+DINOv2 PatchMemory (dup),0.7244,0.7472,0.0137
+Global Image-Stat (proxy),0.6548,0.7178,0.0431
+DINOv2 Composition Hist,0.5757,0.7737,-0.0129

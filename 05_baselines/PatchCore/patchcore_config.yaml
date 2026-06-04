@@ -1,6 +1,6 @@
 method: PatchCore
-feature_backend: fallback_patch_stats
-requested_backend: auto
+feature_backend: dinov2-small
+requested_backend: dinov2
 grid: 24
 max_patches: 50000
 include_xy: False

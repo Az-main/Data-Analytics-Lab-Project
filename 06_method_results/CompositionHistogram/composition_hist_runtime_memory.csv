@@ -1,2 +1,2 @@
 method,feature_backend,time_ms_per_image,memory_bank_size,visual_words,parameter_count
-CompositionHistogram,fallback_patch_stats,61.84526663096588,1778,32,1024
+CompositionHistogram,dinov2-small,27.843806274416433,1778,32,1024

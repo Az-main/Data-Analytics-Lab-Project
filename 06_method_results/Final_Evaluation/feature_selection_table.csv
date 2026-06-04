@@ -1,0 +1,6 @@
+model,n_branches,branches,logical,structural,overall
+"All features (5, incl. duplicate)",5,Global Image-Stat (proxy) + DINOv2 Patch Memory + DINOv2 PatchMemory (dup) + DINOv2 Region-Aware + DINOv2 Composition Hist,0.7314,0.8038,0.7609
+Drop redundant duplicate (4 unique),4,Global Image-Stat (proxy) + DINOv2 Patch Memory + DINOv2 Region-Aware + DINOv2 Composition Hist,0.7254,0.7797,0.7472
+Feature-selected (3: drop redundant + harmful),3,Global Image-Stat (proxy) + DINOv2 Patch Memory + DINOv2 Region-Aware,0.7181,0.8261,0.7638
+Strong DINOv2 memories only (2),2,DINOv2 Patch Memory + DINOv2 Region-Aware,0.7179,0.7786,0.7413
+Best single representation,1,DINOv2 Region-Aware,0.7301,0.7836,0.7503

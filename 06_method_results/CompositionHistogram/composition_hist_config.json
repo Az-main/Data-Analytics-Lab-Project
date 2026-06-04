@@ -1,6 +1,6 @@
 {
   "method": "CompositionHistogram",
-  "feature_backend": "fallback_patch_stats",
+  "feature_backend": "dinov2-small",
   "k_selected": 32,
   "k_candidates": [
     16,
