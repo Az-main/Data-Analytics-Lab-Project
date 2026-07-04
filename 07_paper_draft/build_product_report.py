@@ -1,514 +1,778 @@
 # -*- coding: utf-8 -*-
-"""
-Build the Project A product-structured report (.docx).
+"""Build the concise 5-page LOCO Anomaly Inspector product report."""
 
-Required structure (faculty spec):
-  Introduction | Objective of the product | Features description (with snapshots)
-  | User guidelines | Implementation details | Conclusion
-
-Numbers are read from the committed corrected_*.csv so the report always
-matches the dashboard. Figures are embedded from existing project outputs.
-"""
-import os
 import csv
+import os
+import shutil
+import tempfile
+
+from PIL import Image, ImageDraw, ImageFont
 from docx import Document
-from docx.shared import Pt, Inches, RGBColor
+from docx.enum.section import WD_SECTION
+from docx.enum.table import WD_CELL_VERTICAL_ALIGNMENT, WD_TABLE_ALIGNMENT
 from docx.enum.text import WD_ALIGN_PARAGRAPH
-from docx.enum.table import WD_TABLE_ALIGNMENT
-from docx.oxml.ns import qn
 from docx.oxml import OxmlElement
+from docx.oxml.ns import qn
+from docx.shared import Inches, Pt, RGBColor
+
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-FIG = os.path.join(ROOT, "07_paper_draft", "figures")
-EDA = os.path.join(ROOT, "04_probe_results")
-QUAL = os.path.join(ROOT, "06_method_results", "Qualitative")
-DASH = os.path.join(ROOT, "09_dashboard")
-SHOTS = os.path.join(ROOT, "07_paper_draft", "dashboard_snapshots")
-OUT = os.path.join(ROOT, "07_paper_draft", "Project_A_LOCO_Report_Product.docx")
+REPORT_DIR = os.path.join(ROOT, "07_paper_draft")
+DASH_DIR = os.path.join(ROOT, "09_dashboard")
+EDA_DIR = os.path.join(ROOT, "04_probe_results")
+METHOD_DIR = os.path.join(ROOT, "06_method_results")
+OUT = os.path.join(REPORT_DIR, "Project_A_LOCO_Report_Revised.docx")
 
 NAVY = RGBColor(0x1F, 0x3A, 0x5F)
-GREY = RGBColor(0x55, 0x55, 0x55)
+BLUE = RGBColor(0x2E, 0x74, 0xB5)
+INK = RGBColor(0x20, 0x25, 0x2B)
+MUTED = RGBColor(0x5A, 0x64, 0x70)
+LIGHT_BLUE = "E8EEF5"
+LIGHT_GREEN = "E7F4EC"
+LIGHT_GREY = "F2F4F7"
+TABLE_WIDTH_DXA = 9360
+TABLE_INDENT_DXA = 120
 
-# ---------- data ----------
-def read_main():
-    rows = []
-    with open(os.path.join(DASH, "corrected_main_results.csv"), newline="") as f:
-        for r in csv.DictReader(f):
-            rows.append(r)
-    return rows
 
-COUNTS = {  # category: (train_good, val_good, test_good, test_logical, test_structural)
-    "breakfast_box": (351, 62, 102, 83, 90),
-    "juice_bottle": (335, 54, 94, 142, 94),
-    "pushpins": (372, 69, 138, 91, 81),
-    "screw_bag": (360, 60, 122, 137, 82),
-    "splicing_connectors": (360, 60, 119, 108, 85),
-}
+def set_run_font(run, size=None, bold=None, italic=None, color=None):
+    run.font.name = "Calibri"
+    run._element.get_or_add_rPr().rFonts.set(qn("w:ascii"), "Calibri")
+    run._element.get_or_add_rPr().rFonts.set(qn("w:hAnsi"), "Calibri")
+    if size is not None:
+        run.font.size = Pt(size)
+    if bold is not None:
+        run.bold = bold
+    if italic is not None:
+        run.italic = italic
+    if color is not None:
+        run.font.color.rgb = color
 
-# ---------- helpers ----------
-def set_cell_bg(cell, hex_color):
-    tcPr = cell._tc.get_or_add_tcPr()
-    shd = OxmlElement("w:shd")
-    shd.set(qn("w:val"), "clear")
-    shd.set(qn("w:fill"), hex_color)
-    tcPr.append(shd)
 
-def style_doc(doc):
+def set_cell_fill(cell, color):
+    tc_pr = cell._tc.get_or_add_tcPr()
+    shd = tc_pr.find(qn("w:shd"))
+    if shd is None:
+        shd = OxmlElement("w:shd")
+        tc_pr.append(shd)
+    shd.set(qn("w:fill"), color)
+
+
+def set_cell_margins(cell, top=80, start=120, bottom=80, end=120):
+    tc = cell._tc
+    tc_pr = tc.get_or_add_tcPr()
+    tc_mar = tc_pr.first_child_found_in("w:tcMar")
+    if tc_mar is None:
+        tc_mar = OxmlElement("w:tcMar")
+        tc_pr.append(tc_mar)
+    for edge, value in (("top", top), ("start", start), ("bottom", bottom), ("end", end)):
+        node = tc_mar.find(qn(f"w:{edge}"))
+        if node is None:
+            node = OxmlElement(f"w:{edge}")
+            tc_mar.append(node)
+        node.set(qn("w:w"), str(value))
+        node.set(qn("w:type"), "dxa")
+
+
+def set_table_geometry(table, widths_dxa):
+    table.autofit = False
+    tbl_pr = table._tbl.tblPr
+    tbl_w = tbl_pr.first_child_found_in("w:tblW")
+    if tbl_w is None:
+        tbl_w = OxmlElement("w:tblW")
+        tbl_pr.append(tbl_w)
+    tbl_w.set(qn("w:w"), str(sum(widths_dxa)))
+    tbl_w.set(qn("w:type"), "dxa")
+
+    tbl_ind = tbl_pr.first_child_found_in("w:tblInd")
+    if tbl_ind is None:
+        tbl_ind = OxmlElement("w:tblInd")
+        tbl_pr.append(tbl_ind)
+    tbl_ind.set(qn("w:w"), str(TABLE_INDENT_DXA))
+    tbl_ind.set(qn("w:type"), "dxa")
+
+    grid = table._tbl.tblGrid
+    for child in list(grid):
+        grid.remove(child)
+    for width in widths_dxa:
+        col = OxmlElement("w:gridCol")
+        col.set(qn("w:w"), str(width))
+        grid.append(col)
+
+    for row in table.rows:
+        for cell, width in zip(row.cells, widths_dxa):
+            tc_pr = cell._tc.get_or_add_tcPr()
+            tc_w = tc_pr.first_child_found_in("w:tcW")
+            if tc_w is None:
+                tc_w = OxmlElement("w:tcW")
+                tc_pr.append(tc_w)
+            tc_w.set(qn("w:w"), str(width))
+            tc_w.set(qn("w:type"), "dxa")
+            set_cell_margins(cell)
+    if table.rows:
+        tr_pr = table.rows[0]._tr.get_or_add_trPr()
+        if tr_pr.find(qn("w:tblHeader")) is None:
+            tr_pr.append(OxmlElement("w:tblHeader"))
+
+
+def add_page_number(paragraph):
+    paragraph.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+    label = paragraph.add_run("Page ")
+    set_run_font(label, size=8.5, color=MUTED)
+    run = paragraph.add_run()
+    fld_char_1 = OxmlElement("w:fldChar")
+    fld_char_1.set(qn("w:fldCharType"), "begin")
+    instr_text = OxmlElement("w:instrText")
+    instr_text.set(qn("xml:space"), "preserve")
+    instr_text.text = " PAGE "
+    fld_char_2 = OxmlElement("w:fldChar")
+    fld_char_2.set(qn("w:fldCharType"), "end")
+    run._r.extend([fld_char_1, instr_text, fld_char_2])
+    set_run_font(run, size=8.5, color=MUTED)
+
+
+def configure_document(doc):
+    section = doc.sections[0]
+    section.page_width = Inches(8.5)
+    section.page_height = Inches(11)
+    section.top_margin = Inches(1)
+    section.bottom_margin = Inches(1)
+    section.left_margin = Inches(1)
+    section.right_margin = Inches(1)
+    section.header_distance = Inches(0.49)
+    section.footer_distance = Inches(0.49)
+
     normal = doc.styles["Normal"]
     normal.font.name = "Calibri"
-    normal.font.size = Pt(10.5)
-    for i, sz in [(1, 16), (2, 12.5)]:
-        st = doc.styles[f"Heading {i}"]
-        st.font.name = "Calibri"
-        st.font.size = Pt(sz)
-        st.font.bold = True
-        st.font.color.rgb = NAVY
+    normal._element.rPr.rFonts.set(qn("w:ascii"), "Calibri")
+    normal._element.rPr.rFonts.set(qn("w:hAnsi"), "Calibri")
+    normal.font.size = Pt(10.25)
+    normal.font.color.rgb = INK
+    normal.paragraph_format.space_before = Pt(0)
+    normal.paragraph_format.space_after = Pt(5)
+    normal.paragraph_format.line_spacing = 1.08
+
+    h1 = doc.styles["Heading 1"]
+    h1.font.name = "Calibri"
+    h1._element.rPr.rFonts.set(qn("w:ascii"), "Calibri")
+    h1._element.rPr.rFonts.set(qn("w:hAnsi"), "Calibri")
+    h1.font.size = Pt(15.5)
+    h1.font.bold = True
+    h1.font.color.rgb = BLUE
+    h1.paragraph_format.space_before = Pt(9)
+    h1.paragraph_format.space_after = Pt(5)
+    h1.paragraph_format.keep_with_next = True
+
+    h2 = doc.styles["Heading 2"]
+    h2.font.name = "Calibri"
+    h2._element.rPr.rFonts.set(qn("w:ascii"), "Calibri")
+    h2._element.rPr.rFonts.set(qn("w:hAnsi"), "Calibri")
+    h2.font.size = Pt(12.5)
+    h2.font.bold = True
+    h2.font.color.rgb = NAVY
+    h2.paragraph_format.space_before = Pt(6)
+    h2.paragraph_format.space_after = Pt(3)
+    h2.paragraph_format.keep_with_next = True
+
+    bullet_style = doc.styles["List Bullet"]
+    bullet_style.font.name = "Calibri"
+    bullet_style.font.size = Pt(10.25)
+    bullet_style.paragraph_format.left_indent = Inches(0.5)
+    bullet_style.paragraph_format.first_line_indent = Inches(-0.25)
+    bullet_style.paragraph_format.space_after = Pt(3)
+    bullet_style.paragraph_format.line_spacing = 1.08
+
+    number_style = doc.styles["List Number"]
+    number_style.font.name = "Calibri"
+    number_style.font.size = Pt(10.25)
+    number_style.paragraph_format.left_indent = Inches(0.5)
+    number_style.paragraph_format.first_line_indent = Inches(-0.25)
+    number_style.paragraph_format.space_after = Pt(4)
+    number_style.paragraph_format.line_spacing = 1.08
+
+    header = section.header.paragraphs[0]
+    header.text = "LOCO Anomaly Inspector | Final Project Report"
+    header.alignment = WD_ALIGN_PARAGRAPH.LEFT
+    for run in header.runs:
+        set_run_font(run, size=8.5, color=MUTED)
+
+    footer = section.footer.paragraphs[0]
+    add_page_number(footer)
+
+
+def add_body(doc, text, after=5):
+    paragraph = doc.add_paragraph(text)
+    paragraph.paragraph_format.space_after = Pt(after)
+    return paragraph
+
+
+def add_bullet(doc, lead, text):
+    paragraph = doc.add_paragraph(style="List Bullet")
+    lead_run = paragraph.add_run(lead)
+    set_run_font(lead_run, bold=True)
+    text_run = paragraph.add_run(text)
+    set_run_font(text_run)
+    return paragraph
+
+
+def add_step(doc, lead, text):
+    paragraph = doc.add_paragraph(style="List Number")
+    lead_run = paragraph.add_run(lead)
+    set_run_font(lead_run, bold=True)
+    text_run = paragraph.add_run(text)
+    set_run_font(text_run)
+    return paragraph
+
 
 def add_caption(doc, text):
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    r = p.add_run(text)
-    r.italic = True
-    r.font.size = Pt(8.5)
-    r.font.color.rgb = GREY
-    p.paragraph_format.space_after = Pt(8)
+    paragraph = doc.add_paragraph()
+    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    paragraph.paragraph_format.space_before = Pt(2)
+    paragraph.paragraph_format.space_after = Pt(5)
+    run = paragraph.add_run(text)
+    set_run_font(run, size=8.25, italic=True, color=MUTED)
+    return paragraph
 
-def add_fig(doc, path, width_in, caption):
-    if not os.path.exists(path):
-        return False
-    p = doc.add_paragraph()
-    p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-    p.add_run().add_picture(path, width=Inches(width_in))
-    p.paragraph_format.space_before = Pt(4)
+
+def add_picture(doc, path, width, caption, alt_text=None):
+    paragraph = doc.add_paragraph()
+    paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    paragraph.paragraph_format.space_after = Pt(0)
+    picture = paragraph.add_run().add_picture(path, width=Inches(width))
+    doc_pr = picture._inline.docPr
+    doc_pr.set("descr", alt_text or caption)
+    doc_pr.set("title", caption.split(".", 1)[0])
+    paragraph.paragraph_format.keep_with_next = True
     add_caption(doc, caption)
-    return True
 
-def first_existing(*paths):
-    for p in paths:
-        if os.path.exists(p):
-            return p
-    return None
 
-def body(doc, text):
-    p = doc.add_paragraph(text)
-    p.paragraph_format.space_after = Pt(6)
-    p.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    return p
+def add_callout(doc, title, text, fill=LIGHT_BLUE):
+    table = doc.add_table(rows=1, cols=1)
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    set_table_geometry(table, [TABLE_WIDTH_DXA])
+    cell = table.cell(0, 0)
+    set_cell_fill(cell, fill)
+    cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+    paragraph = cell.paragraphs[0]
+    paragraph.paragraph_format.space_after = Pt(0)
+    title_run = paragraph.add_run(title)
+    set_run_font(title_run, bold=True, color=NAVY)
+    text_run = paragraph.add_run(text)
+    set_run_font(text_run)
+    after = doc.add_paragraph()
+    after.paragraph_format.space_after = Pt(2)
 
-def bullet(doc, lead, rest=""):
-    p = doc.add_paragraph(style="List Bullet")
-    if lead:
-        p.add_run(lead).bold = True
-    if rest:
-        p.add_run(rest)
-    p.paragraph_format.space_after = Pt(3)
-    return p
 
-# ---------- build ----------
-doc = Document()
-style_doc(doc)
-sec = doc.sections[0]
-sec.page_height, sec.page_width = Inches(11), Inches(8.5)
-for m in ("top_margin", "bottom_margin", "left_margin", "right_margin"):
-    setattr(sec, m, Inches(0.85))
+def add_metric_strip(doc):
+    table = doc.add_table(rows=1, cols=3)
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    set_table_geometry(table, [3120, 3120, 3120])
+    metrics = [
+        ("0.761", "Overall AUROC"),
+        ("0.731", "Logical AUROC"),
+        ("0.804", "Structural AUROC"),
+    ]
+    for cell, (value, label) in zip(table.rows[0].cells, metrics):
+        set_cell_fill(cell, LIGHT_BLUE)
+        cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+        paragraph = cell.paragraphs[0]
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        paragraph.paragraph_format.space_after = Pt(0)
+        value_run = paragraph.add_run(value + "\n")
+        set_run_font(value_run, size=17, bold=True, color=NAVY)
+        label_run = paragraph.add_run(label)
+        set_run_font(label_run, size=8.5, color=MUTED)
+    spacer = doc.add_paragraph()
+    spacer.paragraph_format.space_after = Pt(1)
 
-# Title block
-t = doc.add_paragraph()
-t.alignment = WD_ALIGN_PARAGRAPH.CENTER
-r = t.add_run("LOCO Anomaly Inspector")
-r.bold = True
-r.font.size = Pt(22)
-r.font.color.rgb = NAVY
-sub = doc.add_paragraph()
-sub.alignment = WD_ALIGN_PARAGRAPH.CENTER
-r = sub.add_run("An Interactive, Reproducible System for Logical & Structural "
-                "Anomaly Detection on MVTec LOCO AD")
-r.font.size = Pt(11.5)
-r.italic = True
-r.font.color.rgb = GREY
-meta = doc.add_paragraph()
-meta.alignment = WD_ALIGN_PARAGRAPH.CENTER
-r = meta.add_run("Data Analytics Lab — Project A  |  Final Project Report")
-r.font.size = Pt(9.5)
-r.font.color.rgb = GREY
-doc.add_paragraph().paragraph_format.space_after = Pt(2)
 
-# ---- 1. Introduction ----
-doc.add_heading("1. Introduction", level=1)
-body(doc,
-    "Modern manufacturing relies on automated visual inspection to catch defective products before "
-    "they reach customers. Because real defects are rare, diverse, and expensive to label, the practical "
-    "approach is unsupervised anomaly detection: a model learns what a normal, defect-free product looks "
-    "like and then flags anything that deviates. This project tackles that problem on MVTec LOCO AD, the "
-    "standard industrial benchmark, which is unique in distinguishing two fundamentally different kinds of "
-    "defect.")
-bullet(doc, "Structural anomalies — ",
-    "local appearance defects such as scratches, dents, cracks, or contamination. They are visible in a "
-    "small region of the image.")
-bullet(doc, "Logical anomalies — ",
-    "violations of global rules even though every local region looks normal: a breakfast box missing a "
-    "piece of fruit, an extra or misplaced pushpin, a swapped component. Here nothing is locally wrong; "
-    "only the overall composition is incorrect, which makes these anomalies much harder to detect.")
-body(doc,
-    "The dataset spans five product categories (breakfast box, juice bottle, pushpins, screw bag, and "
-    "splicing connectors). Models are trained only on defect-free images and must, at test time, separate "
-    "good products from both logical and structural defects. This report describes the system we built "
-    "end-to-end — a reproducible data pipeline, four complementary detectors with a fusion stage, and an "
-    "interactive explainability dashboard — and reports honest results together with a clear upgrade path.")
-add_fig(doc, os.path.join(FIG, "figure_2_dataset_examples.png"), 6.4,
-        "Figure 1. Representative MVTec LOCO products across the five categories, with normal and "
-        "anomalous examples. Logical defects (e.g. missing/extra parts) look locally normal.")
+def read_results():
+    path = os.path.join(DASH_DIR, "corrected_main_results.csv")
+    with open(path, newline="", encoding="utf-8") as handle:
+        return list(csv.DictReader(handle))
 
-# ---- 2. Objective of the product ----
-doc.add_heading("2. Objective of the Product", level=1)
-body(doc,
-    "The product is the LOCO Anomaly Inspector: a self-contained, interactive dashboard backed by a "
-    "reproducible machine-learning pipeline that detects and explains anomalies in industrial product "
-    "images. It is designed so that a quality-assurance engineer, a data scientist, or an evaluator can "
-    "open a single file in any browser and immediately understand both the data and the model's decisions. "
-    "The objectives are:")
-bullet(doc, "Detect both anomaly types — ",
-    "flag logical and structural defects using only defect-free images for training (no labelled defects).")
-bullet(doc, "Explain every decision — ",
-    "show not just an anomaly score but where and why an image is considered defective, via heatmaps and "
-    "mask overlays.")
-bullet(doc, "Surface only decision-relevant analysis — ",
-    "present the exploratory views that actually inform the model, not decorative charts.")
-bullet(doc, "Be fully reproducible and auditable — ",
-    "fixed seeds, leakage-checked data, and saved configurations so any result can be regenerated and trusted.")
-body(doc,
-    "In short, the goal is not to chase a record accuracy number, but to deliver a transparent, "
-    "trustworthy, and genuinely usable anomaly-detection tool with an honest assessment of its strengths "
-    "and limits.")
 
-# ---- 3. Features description (with snapshots) ----
-doc.add_heading("3. Features Description (with Snapshots)", level=1)
+def make_results_chart(rows, path):
+    ordered = sorted(rows, key=lambda row: float(row["overall"]), reverse=True)
+    canvas = Image.new("RGB", (1500, 610), "white")
+    draw = ImageDraw.Draw(canvas)
+    title_font = load_font(34, bold=True)
+    label_font = load_font(23)
+    value_font = load_font(22, bold=True)
+    axis_font = load_font(19)
+    draw.text((750, 30), "Corrected model comparison", fill="#1F3A5F",
+              font=title_font, anchor="ma")
 
-doc.add_heading("3.1 Interactive multi-tab dashboard", level=2)
-body(doc,
-    "The headline deliverable is a single, self-contained dashboard (dashboard.html) that opens offline in "
-    "any browser — no installation, server, or internet required, because all images and results are "
-    "embedded. It is organised into five tabs: Overview (dataset summary and best result), EDA (only "
-    "decision-relevant exploratory views), Leaderboard (model comparison), Explainability (per-image "
-    "decisions), and Per-category drill-down.")
-shot = first_existing(os.path.join(SHOTS, "dashboard_overview.png"),
-                      os.path.join(SHOTS, "overview.png"))
-if shot:
-    add_fig(doc, shot, 6.4, "Figure 2. The dashboard Overview tab.")
-else:
-    add_fig(doc, os.path.join(FIG, "figure_1_pipeline_overview.png"), 6.2,
-            "Figure 2. System overview: the dashboard presents the pipeline, EDA, leaderboard, and "
-            "per-image explainability in one offline page.")
+    left = 520
+    right = 1390
+    top = 95
+    row_height = 66
+    minimum = 0.50
+    maximum = 0.80
+    for tick in (0.50, 0.60, 0.70, 0.80):
+        x = left + int((tick - minimum) / (maximum - minimum) * (right - left))
+        draw.line((x, top - 5, x, top + row_height * len(ordered) - 6),
+                  fill="#D9DEE5", width=2)
+        draw.text((x, 575), f"{tick:.2f}", fill="#5A6470", font=axis_font, anchor="ma")
 
-doc.add_heading("3.2 Four complementary detectors plus fusion", level=2)
-body(doc,
-    "The system scores each image with four anomaly detectors built on frozen DINOv2-small patch features, "
-    "then fuses them. We benchmarked seven scoring configurations in total — the four detectors plus three "
-    "fusion rules (mean, max, rank-average) — and report all of them on the leaderboard so the comparison is "
-    "transparent. A local memory-based detector is strongest on structural defects, while a composition-based "
-    "detector targets logical defects; fusing complementary detectors gives the best overall result.")
-add_fig(doc, first_existing(os.path.join(SHOTS, "dashboard_leaderboard.png"),
-        os.path.join(FIG, "figure_4_method_comparison.png")), 6.2,
-        "Figure 3. Model comparison (logical vs structural AUROC). Fusion of complementary detectors "
-        "outperforms each individual model.")
+    for index, row in enumerate(ordered):
+        label = row["method"].replace("DINOv2 ", "")
+        value = float(row["overall"])
+        y = top + index * row_height
+        draw.text((500, y + 23), label, fill="#20252B", font=label_font, anchor="ra")
+        end = left + int((value - minimum) / (maximum - minimum) * (right - left))
+        color = "#2E74B5" if index == 0 else "#8FA3BF"
+        draw.rounded_rectangle((left, y + 5, end, y + 42), radius=8, fill=color)
+        draw.text((min(end + 12, 1460), y + 23), f"{value:.3f}",
+                  fill="#20252B", font=value_font, anchor="lm")
 
-doc.add_heading("3.3 Decision-relevant EDA only", level=2)
-body(doc,
-    "Rather than flooding the dashboard with charts, the EDA tab keeps only the views that inform modelling: "
-    "a sample grid, ground-truth mask overlays, the per-pixel normal mean/variance, a spatial anomaly "
-    "heatmap, mask-area distributions, and edge-density statistics. These directly motivate the detector "
-    "design (e.g. spatial structure justifies the region-aware memory).")
-add_fig(doc, first_existing(os.path.join(SHOTS, "dashboard_eda.png"),
-        os.path.join(EDA, "eda_spatial_heatmap_cleaned.png"),
-        os.path.join(EDA, "eda_mask_overlay_cleaned.png")), 5.6,
-        "Figure 4. Example of decision-relevant EDA: spatial distribution of anomalies, which motivates "
-        "position-aware scoring.")
+    draw.text(((left + right) // 2, 600), "Overall image-level AUROC",
+              fill="#5A6470", font=axis_font, anchor="ms")
+    canvas.save(path, quality=95)
 
-doc.add_heading("3.4 Per-image explainability", level=2)
-body(doc,
-    "For each image the Explainability tab shows the original image, the ground-truth anomaly region, and "
-    "the model's decision (anomaly score versus a validation-derived threshold, with a clear pass/fail "
-    "mark). This turns an opaque score into an inspectable, defensible decision.")
-add_fig(doc, first_existing(os.path.join(SHOTS, "dashboard_explainability.png"),
-        os.path.join(QUAL, "qualitative_success_cases.png"),
-        os.path.join(FIG, "figure_5_failure_cases.png")), 6.2,
-        "Figure 5. Per-image explainability: image, ground-truth mask, and the model's decision side by side.")
 
-doc.add_heading("3.5 Leakage-audited, reproducible preprocessing", level=2)
-body(doc,
-    "A distinguishing feature is the rigour of the data pipeline: the raw dataset is read-only; every image "
-    "is resized with aspect-preserving letterboxing; and MD5 plus perceptual hashes are computed across all "
-    "splits to detect duplicate leakage (none found). Environment versions and a dependency freeze are "
-    "stored so the entire study is reproducible — a level of auditing many published pipelines omit.")
+def make_pipeline(path):
+    canvas = Image.new("RGB", (1620, 350), "white")
+    draw = ImageDraw.Draw(canvas)
+    label_font = load_font(24, bold=True)
+    labels = [
+        "Audit and\nletterbox resize",
+        "Frozen DINOv2-small\npatch features",
+        "Three DINOv2 detectors\n+ one global proxy",
+        "Validation-only\nnormalization and fusion",
+        "Results, explanations,\nand dashboard",
+    ]
+    x_positions = [25, 345, 665, 985, 1305]
+    for index, (x, label) in enumerate(zip(x_positions, labels)):
+        draw.rounded_rectangle((x, 75, x + 270, 270), radius=18,
+                               fill="#E8EEF5", outline="#2E74B5", width=4)
+        draw.multiline_text((x + 135, 172), label, fill="#20252B",
+                            font=label_font, anchor="mm", align="center", spacing=8)
+        if index < len(labels) - 1:
+            start_x = x + 276
+            end_x = x_positions[index + 1] - 8
+            draw.line((start_x, 172, end_x, 172), fill="#5A6470", width=5)
+            draw.polygon(
+                [(end_x, 172), (end_x - 18, 160), (end_x - 18, 184)],
+                fill="#5A6470",
+            )
+    canvas.save(path, quality=95)
 
-# ---- 4. User guidelines ----
-doc.add_heading("4. User Guidelines", level=1)
-body(doc, "The product is intentionally simple to operate.")
-bullet(doc, "Open the dashboard: ",
-    "double-click 09_dashboard/dashboard.html. It opens in any browser, fully offline. If a browser does "
-    "not launch automatically, right-click → Open with → your browser.")
-bullet(doc, "Read a decision: ",
-    "on the Explainability and Per-category tabs, each image shows an anomaly score and a threshold; a "
-    "score above the threshold is flagged as anomalous (✗), otherwise it passes (✓). Highlighted regions "
-    "indicate where the model sees the defect.")
-bullet(doc, "Compare models: ",
-    "the Leaderboard tab ranks detectors by logical, structural, and overall AUROC, so the trade-offs "
-    "between models are explicit.")
-bullet(doc, "Explore the data: ",
-    "the EDA tab provides the dataset overview and the analysis that motivated the model design.")
-bullet(doc, "Regenerate results (optional, for developers): ",
-    "from 09_dashboard/, run python build_dashboard.py then python generate_html.py to rebuild the "
-    "dashboard from the result tables. The report is generated by 07_paper_draft/build_product_report.py.")
-bullet(doc, "Reproduce or extend the features (optional): ",
-    "the pipeline exposes a backbone switch; the reported results use frozen DINOv2-small features (run on a "
-    "GPU) and are verified in the runtime logs. Switching to DINOv2-base or masking the letterbox padding "
-    "regenerates all tables with no other code changes.")
 
-# ---- 5. Implementation details ----
-doc.add_heading("5. Implementation Details", level=1)
+def load_font(size, bold=False):
+    candidates = [
+        r"C:\Windows\Fonts\calibrib.ttf" if bold else r"C:\Windows\Fonts\calibri.ttf",
+        r"C:\Windows\Fonts\arialbd.ttf" if bold else r"C:\Windows\Fonts\arial.ttf",
+    ]
+    for candidate in candidates:
+        if os.path.exists(candidate):
+            return ImageFont.truetype(candidate, size)
+    return ImageFont.load_default()
 
-doc.add_heading("5.1 Pipeline architecture", level=2)
-body(doc,
-    "The system is a sequence of deterministic stages: data audit and preprocessing → exploratory analysis "
-    "→ four anomaly detectors → validation-normalised fusion → evaluation → dashboard and report. All logic "
-    "lives in a single shared module (loco_project_utils.py); the notebooks orchestrate it stage by stage.")
-add_fig(doc, os.path.join(FIG, "figure_1_pipeline_overview.png"), 6.2,
-        "Figure 6. End-to-end pipeline from raw data to dashboard and report.")
 
-doc.add_heading("5.2 Data and preprocessing", level=2)
-body(doc,
-    "MVTec LOCO AD provides defect-free training and validation images plus a test set mixing good, "
-    "logical, and structural images with pixel ground-truth masks. We fit only on Train(good), set the "
-    "decision threshold on Validation(good), and hold out the Test split for evaluation; anomalous images "
-    "and masks are never used for fitting. Every image is letterboxed to 384×384 (bilinear for images, "
-    "nearest-neighbour with re-binarisation for masks). The audit confirms 3,651 product images and 1,246 "
-    "masks, with 0 corrupted, 0 wrong-size, and 0 cross-split duplicates.")
+def make_feature_snapshot(path):
+    overlay_path = os.path.join(EDA_DIR, "eda_mask_overlay_cleaned.png")
+    heatmap_path = os.path.join(
+        METHOD_DIR,
+        "GridAware_DINOv2",
+        "gridaware_anomaly_maps",
+        "breakfast_box_structural_anomalies_053.png",
+    )
+    overlay = Image.open(overlay_path).convert("RGB")
+    heatmap = Image.open(heatmap_path).convert("RGB")
 
-# counts table
-tbl = doc.add_table(rows=1, cols=6)
-tbl.alignment = WD_TABLE_ALIGNMENT.CENTER
-tbl.style = "Light Grid Accent 1"
-hdr = ["Category", "Train (good)", "Val (good)", "Test (good)", "Test logical", "Test structural"]
-for i, h in enumerate(hdr):
-    c = tbl.rows[0].cells[i]
-    c.text = h
-    for pr in c.paragraphs:
-        for rr in pr.runs:
-            rr.font.bold = True
-            rr.font.size = Pt(9)
-tot = [0, 0, 0, 0, 0]
-for cat, vals in COUNTS.items():
-    cells = tbl.add_row().cells
-    cells[0].text = cat.replace("_", " ")
-    for i, v in enumerate(vals):
-        cells[i + 1].text = str(v)
-        tot[i] += v
-    for cell in cells:
-        for pr in cell.paragraphs:
-            for rr in pr.runs:
-                rr.font.size = Pt(9)
-trow = tbl.add_row().cells
-trow[0].text = "Total"
-for i, v in enumerate(tot):
-    trow[i + 1].text = str(v)
-for cell in trow:
-    set_cell_bg(cell, "EAF1F8")
-    for pr in cell.paragraphs:
-        for rr in pr.runs:
-            rr.font.bold = True
-            rr.font.size = Pt(9)
-add_caption(doc, "Table 1. Image counts per category and split (3,651 total).")
+    # Use one structural example from the first row of the ground-truth overlay grid.
+    cell_width = overlay.width // 5
+    overlay_crop = overlay.crop(
+        (cell_width * 2, 0, cell_width * 3, int(overlay.height * 0.28))
+    )
+    overlay_crop.thumbnail((620, 420), Image.Resampling.LANCZOS)
+    heatmap = heatmap.resize((390, 390), Image.Resampling.NEAREST)
 
-doc.add_heading("5.3 Detectors and fusion", level=2)
-bullet(doc, "DINOv2 Patch Memory (NN): ",
-    "a PatchCore-style memory bank of normal DINOv2 patch tokens; an image scores high when its patches are "
-    "far (cosine distance) from all normal patches. Sensitive to local/structural defects.")
-bullet(doc, "DINOv2 Region-Aware Memory: ",
-    "the memory is conditioned on coarse image regions, so each patch is compared only to normal patches "
-    "from the same location — adding positional awareness for logical cues. Strongest single detector overall.")
-bullet(doc, "DINOv2 Composition Histogram (BoVW): ",
-    "DINOv2 patch tokens are quantised into visual words (k-means) and the image-level word histogram is "
-    "scored by Mahalanobis distance to the normal distribution. Targets logical anomalies via global composition.")
-bullet(doc, "Global Image-Stat Detector (proxy): ",
-    "a single global descriptor scored against the normal mean — a fast, lightweight image-level baseline "
-    "(the one non-DINOv2 entry, included for reference).")
-bullet(doc, "Fusion: ",
-    "each detector is z-normalised using Validation(good) scores only, then combined by mean, max, or "
-    "rank-average. All thresholds and statistics come from validation data; no test labels are used in any "
-    "tuning, avoiding leakage.")
+    canvas = Image.new("RGB", (1240, 500), "white")
+    draw = ImageDraw.Draw(canvas)
+    title_font = load_font(26, bold=True)
+    label_font = load_font(21, bold=True)
+    note_font = load_font(18)
+    draw.text((620, 18), "Examples used for explanation", fill="#1F3A5F",
+              font=title_font, anchor="ma")
+    canvas.paste(overlay_crop, (120, 75))
+    canvas.paste(heatmap, (735, 75))
+    draw.text((310, 455), "Ground-truth anomaly overlay", fill="#20252B",
+              font=label_font, anchor="mm")
+    draw.text((930, 455), "Region-aware model heatmap", fill="#20252B",
+              font=label_font, anchor="mm")
+    draw.text((620, 488), "The dashboard keeps ground truth and model output clearly separate.",
+              fill="#5A6470", font=note_font, anchor="ms")
+    canvas.save(path, quality=95)
 
-doc.add_heading("5.4 Results", level=2)
-body(doc,
-    "We benchmarked seven scoring configurations — four DINOv2 detectors and three fusion rules — on "
-    "identical splits, and report them all so the comparison is transparent. Table 2 lists image-level "
-    "AUROC (threshold-free) and F1 at a fixed validation-derived operating point (the 90th percentile of "
-    "Validation(good) scores), with the best overall method highlighted. Logical and structural anomalies "
-    "are scored separately, as the benchmark requires.")
-main = read_main()
-main_sorted = sorted(main, key=lambda r: float(r["overall"]), reverse=True)
-best_method = main_sorted[0]["method"]
-rt = doc.add_table(rows=1, cols=5)
-rt.alignment = WD_TABLE_ALIGNMENT.CENTER
-rt.style = "Light Grid Accent 1"
-for i, h in enumerate(["Method", "Logical", "Structural", "Overall", "F1 (overall)"]):
-    c = rt.rows[0].cells[i]
-    c.text = h
-    for pr in c.paragraphs:
-        for rr in pr.runs:
-            rr.font.bold = True
-            rr.font.size = Pt(9)
-for r in main_sorted:
-    m = r["method"]
-    is_best = (m == best_method)
-    cells = rt.add_row().cells
-    vals = [("★ " + m) if is_best else m, f"{float(r['logical']):.3f}", f"{float(r['structural']):.3f}",
-            f"{float(r['overall']):.3f}", f"{float(r['f1_overall']):.3f}"]
-    for i, v in enumerate(vals):
-        cells[i].text = v
-        for pr in cells[i].paragraphs:
-            for rr in pr.runs:
-                rr.font.size = Pt(9)
-                if is_best:
-                    rr.font.bold = True
-    if is_best:
-        for cell in cells:
-            set_cell_bg(cell, "EAF1F8")
-add_caption(doc, "Table 2. Image-level AUROC and F1 for all seven configurations, averaged across the five "
-                 "categories. We tried multiple approaches; the best overall (★) is highlighted.")
-body(doc,
-    "Three findings stand out. First, fusion helps: combining a local memory detector with a global "
-    "composition detector beats either alone, confirming the two-branch intuition behind the benchmark's "
-    "origin method (GCAD) and recent state of the art. Second, the DINOv2 Region-Aware memory achieves the "
-    "best structural AUROC (0.80) and is the strongest single detector, while the Composition Histogram is "
-    "comparatively stronger on logical cues — the two are complementary, which is exactly why fusion wins. "
-    "Per category the result varies sharply: juice_bottle reaches ~0.94 AUROC, whereas pushpins logical "
-    "anomalies (wrong count) stay near chance because patch-nearest-neighbour scoring cannot count parts. "
-    "Third, the best fusion reaches ~0.76 overall AUROC using real, frozen DINOv2-small features (verified "
-    "in the runtime logs as feature_backend = dinov2-small). The remaining gap to component-segmentation "
-    "SOTA (0.95+) is honestly attributable to three unaddressed factors — letterbox padding is not masked "
-    "out, only the small backbone is used, and results are single-seed — each a concrete, low-risk next "
-    "step rather than a fundamental limit.")
-add_fig(doc, os.path.join(FIG, "figure_6_speed_accuracy_tradeoff.png"), 5.4,
-        "Figure 7. Speed–accuracy trade-off across detectors; the fusion and region-aware models offer the "
-        "best accuracy at deployment-plausible latency.")
 
-# ---- 5.5 Feature selection ----
-doc.add_heading("5.5 Feature Selection (Important Representations vs All Features)", level=2)
-body(doc,
-    "Because the inputs are images rather than tabular columns, we perform feature selection at the level of "
-    "feature representations: each detector is one representation of the image. We rank representations two "
-    "ways — by their single-branch AUROC and by their leave-one-out contribution to the fusion — then drop "
-    "the redundant and unhelpful ones and compare a model that uses only the important representations "
-    "against one that uses all of them. Two findings drive the selection: PatchCore is byte-identical to the "
-    "DINOv2 PatchMemory branch (a redundant duplicate), and the Composition-Histogram branch is the only "
-    "representation whose removal improves the fusion (its leave-one-out contribution is negative), i.e. it "
-    "is actively unhelpful.")
-fs_rows = []
-with open(os.path.join(ROOT, "06_method_results", "Final_Evaluation", "feature_selection_table.csv"), newline="") as f:
-    for r in csv.DictReader(f):
-        fs_rows.append(r)
-ft = doc.add_table(rows=1, cols=5)
-ft.alignment = WD_TABLE_ALIGNMENT.CENTER
-ft.style = "Light Grid Accent 1"
-for i, h in enumerate(["Model", "# reps", "Logical", "Structural", "Overall"]):
-    c = ft.rows[0].cells[i]
-    c.text = h
-    for pr in c.paragraphs:
-        for rr in pr.runs:
-            rr.font.bold = True
-            rr.font.size = Pt(9)
-for r in fs_rows:
-    sel = "Feature-selected" in r["model"]
-    cells = ft.add_row().cells
-    vals = [("★ " if sel else "") + r["model"], r["n_branches"],
-            f"{float(r['logical']):.3f}", f"{float(r['structural']):.3f}", f"{float(r['overall']):.3f}"]
-    for i, v in enumerate(vals):
-        cells[i].text = v
-        for pr in cells[i].paragraphs:
-            for rr in pr.runs:
-                rr.font.size = Pt(9)
-                rr.font.bold = sel
-    if sel:
-        for cell in cells:
-            set_cell_bg(cell, "E5F5EC")
-add_caption(doc, "Table 3. Feature selection at the representation level. Dropping the redundant duplicate and "
-                 "the harmful Composition-Histogram branch (★) edges the full 5-branch fusion with fewer "
-                 "representations and higher structural AUROC.")
-body(doc,
-    "The feature-selected three-representation model reaches 0.764 overall AUROC (0.826 structural), slightly "
-    "above the full fusion (0.761), using fewer and non-redundant features. Because MVTec LOCO provides no "
-    "anomalous validation images, this representation importance is necessarily assessed on the held-out test "
-    "split; we therefore report it as analysis and keep the pre-specified all-branch fusion (0.76) as the "
-    "headline result, so no test labels tune the reported model. A complementary check at the raw-feature "
-    "level — a PCA/k-means probe of DINOv2 tokens — found that explicit component-count features are "
-    "unreliable, and they were dropped from the design.")
-add_fig(doc, os.path.join(FIG, "figure_feature_selection.png"), 5.6,
-        "Figure 8. Overall AUROC for feature-selected vs all-feature models; principled selection of "
-        "complementary representations matches or beats using every branch.")
+def add_results_table(doc, rows):
+    ordered = sorted(rows, key=lambda row: float(row["overall"]), reverse=True)
+    table = doc.add_table(rows=1, cols=5)
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    table.style = "Table Grid"
+    widths = [4320, 1260, 1260, 1260, 1260]
+    set_table_geometry(table, widths)
+    headers = ["Method", "Logical", "Structural", "Overall", "F1"]
+    for cell, text in zip(table.rows[0].cells, headers):
+        set_cell_fill(cell, LIGHT_GREY)
+        paragraph = cell.paragraphs[0]
+        paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        paragraph.paragraph_format.space_after = Pt(0)
+        run = paragraph.add_run(text)
+        set_run_font(run, size=8.5, bold=True, color=NAVY)
 
-# ---- 5.6 Key insights ----
-doc.add_heading("5.6 Key Insights", level=2)
-bullet(doc, "Real DINOv2 verified: ",
-    "the entire pipeline runs on frozen DINOv2-small patch features (feature_backend = dinov2-small); the "
-    "best pre-specified fusion reaches 0.76 overall AUROC (0.73 logical / 0.80 structural).")
-bullet(doc, "Fusion of complementary detectors wins: ",
-    "the DINOv2 Region-Aware memory is the strongest single representation (0.75) and drives structural "
-    "accuracy, but combining complementary detectors beats any single model.")
-bullet(doc, "Feature selection improves the model: ",
-    "the Composition-Histogram branch hurts the fusion and PatchCore duplicates the PatchMemory branch; "
-    "dropping both yields a leaner, better three-representation model (0.764, structural 0.826).")
-bullet(doc, "Category difficulty varies sharply: ",
-    "juice_bottle is near-solved (~0.94 AUROC) while pushpins logical anomalies (wrong count) stay near "
-    "chance, because patch-nearest-neighbour scoring cannot count parts.")
-bullet(doc, "Clear, low-risk upgrade path: ",
-    "masking the letterbox padding, moving to DINOv2-base, and multi-seed averaging are each small changes "
-    "expected to push results toward GCAD/EfficientAD territory (0.83-0.90); component-segmentation SOTA "
-    "(SALAD/CSAD) reaches 0.95+.")
+    for index, row in enumerate(ordered):
+        cells = table.add_row().cells
+        values = [
+            row["method"],
+            f'{float(row["logical"]):.3f}',
+            f'{float(row["structural"]):.3f}',
+            f'{float(row["overall"]):.3f}',
+            f'{float(row["f1_overall"]):.3f}',
+        ]
+        for col, (cell, value) in enumerate(zip(cells, values)):
+            cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+            paragraph = cell.paragraphs[0]
+            paragraph.alignment = (
+                WD_ALIGN_PARAGRAPH.LEFT if col == 0 else WD_ALIGN_PARAGRAPH.CENTER
+            )
+            paragraph.paragraph_format.space_after = Pt(0)
+            run = paragraph.add_run(value)
+            set_run_font(run, size=8.25, bold=(index == 0))
+        if index == 0:
+            for cell in cells:
+                set_cell_fill(cell, LIGHT_GREEN)
+    add_caption(
+        doc,
+        "Table 1. Corrected image-level results. Mean fusion is the best pre-specified method.",
+    )
 
-doc.add_heading("5.7 Technology and reproducibility", level=2)
-body(doc,
-    "The pipeline is built in Python (PyTorch and Hugging Face Transformers for the frozen DINOv2-small "
-    "backbone; NumPy, scikit-learn, Pillow, pandas, Matplotlib for the rest); the dashboard is "
-    "a self-contained HTML/JavaScript page with base64-embedded assets. Reproducibility is enforced by "
-    "fixed seeds, deterministic preprocessing with saved per-image resize metadata, MD5 and perceptual-hash "
-    "leakage auditing across splits, per-method JSON configurations, and an environment/dependency freeze.")
 
-# ---- 6. Conclusion ----
-doc.add_heading("6. Conclusion", level=1)
-body(doc,
-    "We delivered a complete, working anomaly-detection product for MVTec LOCO AD: a reproducible, "
-    "leakage-audited data pipeline; four complementary DINOv2 detectors with validation-only fusion; and an "
-    "interactive, offline dashboard that explains every decision and surfaces only decision-relevant "
-    "analysis. The best fusion reaches 0.76 overall image-level AUROC (0.73 logical / 0.80 structural) using "
-    "real frozen DINOv2-small features, establishing a transparent and defensible result with a clear "
-    "per-category failure analysis.")
-body(doc,
-    "The project's strength is its honesty and rigour: the methods are named for what they compute, the "
-    "features are verified as real DINOv2 in the runtime logs, the evaluation is leakage-free, and the data "
-    "pipeline is auditable end-to-end. The highest-impact next steps — each a small, low-risk change — are "
-    "to mask out the letterbox padding, move from the small to the base DINOv2 backbone, and average over "
-    "multiple seeds; together these are expected to lift results toward GCAD/EfficientAD territory "
-    "(0.83–0.90). Component-segmentation methods such as CSAD and SALAD reach 0.95–0.96 by explicitly "
-    "modelling object parts. We also plan to add the official localisation metric (sPRO/AUPRO). As built, "
-    "the system is a trustworthy, explainable, and fully reproducible foundation that is straightforward to extend.")
+def add_methods_table(doc):
+    table = doc.add_table(rows=1, cols=3)
+    table.alignment = WD_TABLE_ALIGNMENT.CENTER
+    table.style = "Table Grid"
+    widths = [2700, 4380, 2280]
+    set_table_geometry(table, widths)
+    headers = ["Branch", "What it checks", "Feature source"]
+    for cell, text in zip(table.rows[0].cells, headers):
+        set_cell_fill(cell, LIGHT_GREY)
+        paragraph = cell.paragraphs[0]
+        paragraph.paragraph_format.space_after = Pt(0)
+        run = paragraph.add_run(text)
+        set_run_font(run, size=8.5, bold=True, color=NAVY)
 
-# ---- References ----
-doc.add_heading("References", level=1)
-refs = [
-    "[1] Bergmann et al. Beyond Dents and Scratches: Logical Constraints in Unsupervised Anomaly "
-    "Detection and Localization (MVTec LOCO AD; GCAD). IJCV, 2022.",
-    "[2] Hsieh et al. CSAD: Unsupervised Component Segmentation for Logical Anomaly Detection. BMVC, 2024.",
-    "[3] Batzner et al. EfficientAD: Accurate Visual Anomaly Detection at Millisecond-Level Latencies. "
-    "WACV, 2024.",
-    "[4] Damm et al. AnomalyDINO: Boosting Patch-based Few-shot Anomaly Detection with DINOv2. WACV, 2025.",
-]
-for rf in refs:
-    p = doc.add_paragraph(rf)
-    p.paragraph_format.space_after = Pt(2)
-    for rr in p.runs:
-        rr.font.size = Pt(8.5)
-        rr.font.color.rgb = GREY
+    rows = [
+        ("Patch Memory", "Local patch appearance compared with normal memory.", "DINOv2-small"),
+        ("Region-Aware Memory", "Patch appearance plus approximate image position.", "DINOv2-small"),
+        ("Composition Histogram", "The global mix of visual words in the image.", "DINOv2-small"),
+        ("Global Image-Stat Proxy", "A fast global image-level difference score.", "Non-DINOv2 proxy"),
+    ]
+    for branch, check, source in rows:
+        cells = table.add_row().cells
+        for cell, value in zip(cells, (branch, check, source)):
+            cell.vertical_alignment = WD_CELL_VERTICAL_ALIGNMENT.CENTER
+            paragraph = cell.paragraphs[0]
+            paragraph.paragraph_format.space_after = Pt(0)
+            run = paragraph.add_run(value)
+            set_run_font(run, size=8.25)
+    add_caption(doc, "Table 2. The four detector branches used in the comparison.")
 
-doc.save(OUT)
-print("Saved:", OUT)
-print("Paragraphs:", len(doc.paragraphs), "| Tables:", len(doc.tables))
+
+def build_report():
+    rows = read_results()
+    temp_dir = tempfile.mkdtemp(prefix="_report_build_", dir=REPORT_DIR)
+    results_chart = os.path.join(temp_dir, "results_chart.png")
+    pipeline_chart = os.path.join(temp_dir, "pipeline.png")
+    feature_snapshot = os.path.join(temp_dir, "feature_snapshot.png")
+    make_results_chart(rows, results_chart)
+    make_pipeline(pipeline_chart)
+    make_feature_snapshot(feature_snapshot)
+
+    try:
+        doc = Document()
+        configure_document(doc)
+
+        # Page 1: title, introduction, objective.
+        title = doc.add_paragraph()
+        title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        title.paragraph_format.space_before = Pt(8)
+        title.paragraph_format.space_after = Pt(3)
+        run = title.add_run("LOCO Anomaly Inspector")
+        set_run_font(run, size=23, bold=True, color=NAVY)
+
+        subtitle = doc.add_paragraph()
+        subtitle.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        subtitle.paragraph_format.space_after = Pt(10)
+        run = subtitle.add_run(
+            "Logical and Structural Anomaly Detection on MVTec LOCO AD"
+        )
+        set_run_font(run, size=11.5, italic=True, color=MUTED)
+
+        add_metric_strip(doc)
+
+        doc.add_heading("1. Introduction", level=1)
+        add_body(
+            doc,
+            "Factories need to find defective products before they reach customers. "
+            "This is difficult because real defects are rare and expensive to label. "
+            "The LOCO Anomaly Inspector learns only from normal images and gives each "
+            "test image an anomaly score.",
+        )
+        add_bullet(
+            doc,
+            "Structural anomalies: ",
+            "visible local defects such as damage, contamination, or deformation.",
+        )
+        add_bullet(
+            doc,
+            "Logical anomalies: ",
+            "missing, extra, misplaced, or incorrectly counted parts. The parts may "
+            "look normal by themselves, so these cases are harder.",
+        )
+        add_body(
+            doc,
+            "The project uses all five MVTec LOCO AD categories: breakfast box, juice "
+            "bottle, pushpins, screw bag, and splicing connectors. The audited dataset "
+            "contains 3,651 product images and 1,246 ground-truth masks.",
+        )
+
+        doc.add_heading("2. Objective of the Product", level=1)
+        add_body(
+            doc,
+            "The product combines a reproducible machine-learning pipeline with a "
+            "Power BI dashboard and a self-contained HTML dashboard. Its main goals are:",
+        )
+        add_bullet(doc, "Detect defects: ", "rank good and abnormal test images using normal training data.")
+        add_bullet(doc, "Explain results: ", "show scores, thresholds, masks, and anomaly heatmaps.")
+        add_bullet(doc, "Compare methods: ", "show logical, structural, overall AUROC, and F1.")
+        add_bullet(doc, "Support review: ", "present only EDA and model outputs that help explain decisions.")
+        add_callout(
+            doc,
+            "Main result: ",
+            "Mean fusion achieved 0.761 overall AUROC. Region-Aware Memory was the "
+            "strongest individual detector at 0.750 overall AUROC.",
+        )
+
+        doc.add_page_break()
+
+        # Page 2: features and snapshots.
+        doc.add_heading("3. Features Description with Relevant Snapshots", level=1)
+        add_body(
+            doc,
+            "The dashboard is available in Power BI and as an offline HTML file. It "
+            "brings the dataset summary, model comparison, category results, threshold "
+            "metrics, feature selection, EDA, and explanation examples into one place.",
+        )
+        add_bullet(
+            doc,
+            "Overview and leaderboard: ",
+            "show the best method and compare all seven scoring configurations.",
+        )
+        add_bullet(
+            doc,
+            "Category analysis: ",
+            "filters results by product category and anomaly type.",
+        )
+        add_bullet(
+            doc,
+            "Relevant EDA only: ",
+            "keeps sample images, mask overlays, normal mean/variance, and separate "
+            "category heatmaps because these views help explain the modelling choices.",
+        )
+        add_bullet(
+            doc,
+            "Explainability: ",
+            "keeps ground-truth masks separate from model heatmaps and displays the "
+            "model score against a validation-derived threshold.",
+        )
+        add_picture(
+            doc,
+            feature_snapshot,
+            6.35,
+            "Figure 1. Relevant explanation views: a ground-truth overlay and a model "
+            "anomaly heatmap. They are different objects and are labelled separately.",
+            "Two explanation examples: a red ground-truth anomaly overlay on a product "
+            "image and a region-aware model heatmap.",
+        )
+        add_callout(
+            doc,
+            "Important reading rule: ",
+            "The red overlay is the dataset annotation. The heatmap is the model output. "
+            "Neither should be described as the other.",
+            fill=LIGHT_GREY,
+        )
+
+        doc.add_page_break()
+
+        # Page 3: user guide and implementation.
+        doc.add_heading("4. User Guidelines", level=1)
+        add_step(
+            doc,
+            "Open the dashboard. ",
+            "Use the Power BI file or open 09_dashboard/dashboard.html in a browser.",
+        )
+        add_step(
+            doc,
+            "Start with the overview. ",
+            "Check the best overall AUROC and the logical-versus-structural difference.",
+        )
+        add_step(
+            doc,
+            "Use filters. ",
+            "Choose a method, category, and anomaly type to inspect detailed results.",
+        )
+        add_step(
+            doc,
+            "Read a decision. ",
+            "A score at or above the saved validation threshold is flagged as anomalous.",
+        )
+        add_step(
+            doc,
+            "Check the explanation. ",
+            "Compare the original image, ground truth, and model heatmap before drawing a conclusion.",
+        )
+
+        doc.add_heading("5. Implementation Details", level=1)
+        add_picture(
+            doc,
+            pipeline_chart,
+            6.35,
+            "Figure 2. The corrected end-to-end workflow.",
+            "Five-step workflow from data audit and letterbox resizing through DINOv2 "
+            "features, detectors, validation-only fusion, and dashboard outputs.",
+        )
+        add_body(
+            doc,
+            "Images are resized to a 384 x 384 canvas with aspect-ratio-preserving "
+            "letterboxing. Product images use bilinear interpolation; masks use "
+            "nearest-neighbour interpolation and remain binary. Train/good images fit "
+            "the normal models. Validation/good scores set normalization and thresholds. "
+            "The test split is used only for final evaluation.",
+        )
+        add_methods_table(doc)
+        add_body(
+            doc,
+            "The three DINOv2 branches use real frozen DINOv2-small patch features. "
+            "The Global Image-Stat Detector is a lightweight non-DINOv2 proxy. Scores "
+            "are combined with mean, maximum, and rank-average fusion.",
+            after=2,
+        )
+
+        doc.add_page_break()
+
+        # Page 4: results and feature selection.
+        doc.add_heading("5. Implementation Details - Results", level=1)
+        add_results_table(doc, rows)
+        add_picture(
+            doc,
+            results_chart,
+            6.35,
+            "Figure 3. Corrected overall AUROC values from corrected_main_results.csv.",
+            "Horizontal bar chart comparing overall AUROC for seven methods. Mean fusion "
+            "is highest at 0.761.",
+        )
+        add_callout(
+            doc,
+            "Feature selection: ",
+            "The Composition Histogram reduced fusion quality, and one Patch Memory "
+            "entry was a duplicate. Removing both produced a smaller three-branch "
+            "configuration with 0.764 overall AUROC and 0.826 structural AUROC. "
+            "Because this analysis used held-out test labels, the pre-specified mean "
+            "fusion remains the headline result.",
+            fill=LIGHT_GREEN,
+        )
+        add_body(
+            doc,
+            "Structural anomalies were easier than logical anomalies. Local damage "
+            "changes patch appearance directly, while a wrong number or arrangement of "
+            "normal-looking parts requires stronger relational reasoning.",
+            after=2,
+        )
+
+        doc.add_page_break()
+
+        # Page 5: limitations, conclusion, references.
+        doc.add_heading("Current Limitations", level=1)
+        add_bullet(
+            doc,
+            "Single seed: ",
+            "the headline experiment has not yet been repeated across several random seeds.",
+        )
+        add_bullet(
+            doc,
+            "Letterbox padding: ",
+            "padded regions are not fully removed from patch modelling and scoring.",
+        )
+        add_bullet(
+            doc,
+            "Logical reasoning: ",
+            "nearest-neighbour patch matching does not explicitly count parts or model long-range relationships.",
+        )
+        add_bullet(
+            doc,
+            "Localization metrics: ",
+            "the final tables do not yet include the complete pixel AUROC and AUPRO evaluation.",
+        )
+        add_bullet(
+            doc,
+            "Method scope: ",
+            "the global baseline is a proxy, and the patch-memory baseline is PatchCore-style rather than a full official reproduction.",
+        )
+
+        doc.add_heading("6. Conclusion", level=1)
+        add_body(
+            doc,
+            "The LOCO Anomaly Inspector meets the main project goal: it trains on "
+            "normal images, detects both logical and structural anomalies, compares "
+            "multiple ML/DL scoring methods, and explains results through dashboards "
+            "and visual evidence.",
+        )
+        add_body(
+            doc,
+            "Mean fusion achieved the best pre-specified overall result at 0.761 AUROC. "
+            "Region-Aware Memory was the strongest single detector. The work also shows "
+            "that keeping every feature is not always helpful: the reduced three-branch "
+            "model was slightly better, although it is reported as analysis rather than "
+            "the headline model.",
+        )
+        add_body(
+            doc,
+            "The next priorities are to mask padded regions, repeat experiments across "
+            "multiple seeds, add complete localization metrics, and test stronger "
+            "relational methods for counting and arrangement errors.",
+        )
+        add_callout(
+            doc,
+            "Final assessment: ",
+            "The project delivers a clear, reproducible, and honest anomaly-detection "
+            "product. Its strongest contribution is the combination of real DINOv2 "
+            "features, leakage-aware evaluation, model comparison, feature selection, "
+            "and simple visual explanation.",
+        )
+
+        doc.add_heading("References", level=1)
+        references = [
+            "[1] Bergmann et al. MVTec LOCO AD and GCAD. IJCV, 2022.",
+            "[2] Batzner et al. EfficientAD. WACV, 2024.",
+            "[3] Damm et al. AnomalyDINO. WACV, 2025.",
+            "[4] Hsieh et al. CSAD. BMVC, 2024.",
+        ]
+        for reference in references:
+            paragraph = doc.add_paragraph(reference)
+            paragraph.paragraph_format.space_after = Pt(1)
+            for run in paragraph.runs:
+                set_run_font(run, size=8.25, color=MUTED)
+
+        doc.core_properties.title = "LOCO Anomaly Inspector - Final Project Report"
+        doc.core_properties.subject = "Five-page product report"
+        doc.core_properties.keywords = "MVTec LOCO AD, DINOv2, anomaly detection"
+        doc.save(OUT)
+        return OUT
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+if __name__ == "__main__":
+    print(build_report())

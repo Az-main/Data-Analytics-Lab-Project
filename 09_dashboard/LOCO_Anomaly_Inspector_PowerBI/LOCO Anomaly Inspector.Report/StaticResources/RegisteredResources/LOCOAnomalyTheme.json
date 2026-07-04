@@ -1,0 +1,22 @@
+{
+  "$schema": "https://raw.githubusercontent.com/microsoft/powerbi-desktop-samples/main/Report%20Theme%20JSON%20Schema/reportThemeSchema-2.116.json",
+  "name": "LOCO Anomaly Inspector",
+  "dataColors": [
+    "#008C95",
+    "#3A86FF",
+    "#F4A261",
+    "#E76F51",
+    "#2A9D8F",
+    "#8338EC",
+    "#6C757D"
+  ],
+  "background": "#F4F7FA",
+  "foreground": "#14213D",
+  "tableAccent": "#008C95",
+  "good": "#2A9D8F",
+  "neutral": "#F4A261",
+  "bad": "#E76F51",
+  "maximum": "#3A86FF",
+  "minimum": "#E9ECEF",
+  "center": "#F4A261"
+}

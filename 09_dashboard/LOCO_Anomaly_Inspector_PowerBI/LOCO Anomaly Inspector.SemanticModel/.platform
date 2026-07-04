@@ -1,0 +1,11 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/gitIntegration/platformProperties/2.0.0/schema.json",
+  "metadata": {
+    "type": "SemanticModel",
+    "displayName": "LOCO Anomaly Inspector"
+  },
+  "config": {
+    "version": "2.0",
+    "logicalId": "77f3cd4a-e293-54c1-bceb-4ebdd2abc50b"
+  }
+}

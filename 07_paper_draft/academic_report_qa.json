@@ -1,0 +1,27 @@
+{
+  "docx": "G:\\Other computers\\My Laptop\\8th trimester\\Data analytics lab\\Data-Analytics-Lab-Project\\07_paper_draft\\Project_A_LOCO_Final_Academic_Report.docx",
+  "docx_page_breaks": 4,
+  "docx_expected_pages": 5,
+  "docx_headings": [
+    "1. Introduction",
+    "2. Objective of the Product",
+    "3. Product Features",
+    "4. User Guidelines",
+    "5. Implementation and Methodology",
+    "5.1 Data Preparation",
+    "5.2 Model Methods",
+    "5.3 Evaluation Protocol",
+    "6. Results and Feature Selection",
+    "7. Explainability and Limitations",
+    "8. Conclusion",
+    "References"
+  ],
+  "docx_missing_headings": [],
+  "docx_inline_images": 4,
+  "docx_tables": 5,
+  "latex": "G:\\Other computers\\My Laptop\\8th trimester\\Data analytics lab\\Data-Analytics-Lab-Project\\07_paper_draft\\overleaf\\main.tex",
+  "latex_newpage_count": 4,
+  "latex_brace_balance": 0,
+  "latex_missing_assets": [],
+  "zip": "G:\\Other computers\\My Laptop\\8th trimester\\Data analytics lab\\Data-Analytics-Lab-Project\\07_paper_draft\\LOCO_Overleaf_Report.zip"
+}

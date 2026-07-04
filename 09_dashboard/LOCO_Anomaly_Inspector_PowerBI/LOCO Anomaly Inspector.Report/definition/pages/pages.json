@@ -1,0 +1,13 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/pagesMetadata/1.0.0/schema.json",
+  "pageOrder": [
+    "pg01Overview",
+    "pg02Leaderboard",
+    "pg03Category",
+    "pg04Thresholds",
+    "pg05FeatureSelection",
+    "pg06EDA",
+    "pg07Explainability"
+  ],
+  "activePageName": "pg01Overview"
+}

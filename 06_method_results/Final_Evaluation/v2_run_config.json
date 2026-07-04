@@ -1,0 +1,25 @@
+{
+  "pipeline_version": "v2",
+  "feature_backend": "dinov2-small-v2crop336",
+  "img_size": 336,
+  "grid": 24,
+  "padding_cropped": true,
+  "per_category_models": true,
+  "fusion_normalization": "per-category validation z-score",
+  "nn_device": "cuda",
+  "seeds": [
+    42,
+    7,
+    2026
+  ],
+  "canonical_seed": 42,
+  "max_bank_per_category": 100000,
+  "improvements_over_v1": [
+    "letterbox padding cropped before feature extraction",
+    "per-category memory banks / vocabularies / histogram statistics",
+    "per-category fusion normalization",
+    "memory branches differentiated (k=1/top1 vs k=3/top5)",
+    "GPU nearest-neighbour search + single-pass feature cache",
+    "multi-seed evaluation"
+  ]
+}

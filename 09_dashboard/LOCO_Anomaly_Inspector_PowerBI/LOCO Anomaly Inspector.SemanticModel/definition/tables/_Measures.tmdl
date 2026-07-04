@@ -1,0 +1,116 @@
+table _Measures
+	lineageTag: c4afd6e3-527f-54a8-8dc6-cdb97dcc84d5
+
+	measure 'Overall AUROC' = MAX('Main Results'[overall])
+		formatString: 0.000
+		lineageTag: 99fc4def-7d5d-5c0e-b335-5a6844214d51
+
+	measure 'Logical AUROC' = MAX('Main Results'[logical])
+		formatString: 0.000
+		lineageTag: 56714f30-aaf7-5fb2-a637-27eb10eaddbb
+
+	measure 'Structural AUROC' = MAX('Main Results'[structural])
+		formatString: 0.000
+		lineageTag: 52bf327d-e062-5175-8927-206b3ae778ec
+
+	measure 'Overall F1' = MAX('Main Results'[f1_overall])
+		formatString: 0.000
+		lineageTag: 4527cd6a-1609-5335-94a7-fdbbaa02d183
+
+	measure 'Logical F1' = MAX('Main Results'[f1_logical])
+		formatString: 0.000
+		lineageTag: 4725048b-7194-5604-bde8-9be2e75e0e13
+
+	measure 'Structural F1' = MAX('Main Results'[f1_structural])
+		formatString: 0.000
+		lineageTag: 837afaf2-81cc-5aad-8b94-6a6596f275d8
+
+	measure 'Selected Method' = CONCATENATEX(TOPN(1, ALLSELECTED('Main Results'[method]), CALCULATE(MAX('Main Results'[overall])), DESC), 'Main Results'[method], ", ")
+		lineageTag: 3860600a-19d9-57b6-9ddb-0e100da9e580
+
+	measure 'Category AUROC' = AVERAGE('Category Results'[auroc])
+		formatString: 0.000
+		lineageTag: eba8b2d6-6aa7-5c20-ada4-9d6490096e1e
+
+	measure 'Category F1' = AVERAGE('Category Results'[f1])
+		formatString: 0.000
+		lineageTag: fe4a082d-9687-5baa-b8bf-cd014dc09f38
+
+	measure 'Category Precision' = AVERAGE('Category Results'[precision])
+		formatString: 0.000
+		lineageTag: 3685c25b-57e0-5c04-86d8-4153726c4aa6
+
+	measure 'Category Recall' = AVERAGE('Category Results'[recall])
+		formatString: 0.000
+		lineageTag: 652b81f5-c680-551b-bc94-2c4ed26804e7
+
+	measure 'Average Threshold' = AVERAGE('Category Results'[val_threshold])
+		formatString: 0.000
+		lineageTag: 9afba5e6-a51e-5523-966a-91bf524f6249
+
+	measure 'Good Samples' = SUMX(SUMMARIZE('Category Results', 'Category Results'[category], 'Category Results'[anomaly_type], "GoodN", MAX('Category Results'[n_good])), [GoodN])
+		formatString: #,0
+		lineageTag: 2b2459ab-7fc5-56a3-93d4-f2af8bcf9bf4
+
+	measure 'Anomaly Samples' = SUMX(SUMMARIZE('Category Results', 'Category Results'[category], 'Category Results'[anomaly_type], "AnomalyN", MAX('Category Results'[n_anomaly])), [AnomalyN])
+		formatString: #,0
+		lineageTag: 2027d566-f644-5b86-ae9c-d5f2ec17f8fd
+
+	measure 'Variant Overall AUROC' = MAX('Feature Variants'[overall])
+		formatString: 0.000
+		lineageTag: 4c4e2a3f-4f58-540c-bcd9-03abfdf27d4d
+
+	measure 'Variant Logical AUROC' = MAX('Feature Variants'[logical])
+		formatString: 0.000
+		lineageTag: f7627f89-acae-525d-8635-c63aaae5b68d
+
+	measure 'Variant Structural AUROC' = MAX('Feature Variants'[structural])
+		formatString: 0.000
+		lineageTag: 497d6ae2-e50a-592a-a2cc-313adf952666
+
+	measure 'Selected Branch Count' = MAX('Feature Variants'[n_branches])
+		formatString: 0
+		lineageTag: c238a2db-de2b-5b4e-87cc-d68c358ae1f7
+
+	measure 'Best Variant' = CONCATENATEX(TOPN(1, ALLSELECTED('Feature Variants'[model]), CALCULATE(MAX('Feature Variants'[overall])), DESC), 'Feature Variants'[model], ", ")
+		lineageTag: 7714c10e-6e4c-5cec-bea0-627c6bc77aee
+
+	measure 'Importance Delta' = MAX('Feature Importance'[importance_delta])
+		formatString: 0.000
+		lineageTag: 770b2edc-d486-5367-8c62-2dbee0d663f3
+
+	measure 'Single Branch AUROC' = MAX('Feature Importance'[single_branch_overall_auroc])
+		formatString: 0.000
+		lineageTag: 6227aa36-b428-5fe0-8cf3-683ab0ad94b5
+
+	measure 'Fusion Without Branch' = MAX('Feature Importance'[fusion_without_this])
+		formatString: 0.000
+		lineageTag: ff57c295-b9f0-58c5-9117-abc682635da4
+
+	measure 'Important Branches' = CALCULATE(COUNTROWS('Feature Importance'), 'Feature Importance'[importance_delta] > 0)
+		formatString: 0
+		lineageTag: b13b174e-0b20-5a5a-8b59-bbe3f4a56f1d
+
+	measure 'Harmful Branches' = CALCULATE(COUNTROWS('Feature Importance'), 'Feature Importance'[importance_delta] < 0)
+		formatString: 0
+		lineageTag: a8119530-78ec-5a24-8a59-24223c187312
+
+	column Key
+		dataType: int64
+		isHidden
+		lineageTag: 4bbe7bed-da30-5ff0-81df-6f39bd36a928
+		summarizeBy: none
+		sourceColumn: Key
+
+		annotation SummarizationSetBy = User
+
+	partition _Measures-Embedded = m
+		mode: import
+		source =
+				let
+				    Source = #table(type table [Key = Int64.Type], {{1}})
+				in
+				    Source
+
+	annotation PBI_ResultType = Table
+

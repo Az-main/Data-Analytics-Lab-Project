@@ -1,0 +1,50 @@
+table 'Feature Importance'
+	lineageTag: 609247c0-65a3-562e-a972-26e05fad604a
+
+	column branch
+		dataType: string
+		lineageTag: 4211423c-3fd4-50ca-ae38-c542e0a35caf
+		summarizeBy: none
+		sourceColumn: branch
+
+		annotation SummarizationSetBy = User
+
+	column single_branch_overall_auroc
+		dataType: double
+		formatString: 0.000
+		lineageTag: 9c90eaa0-3a54-56b7-b28c-46e51f220af5
+		summarizeBy: none
+		sourceColumn: single_branch_overall_auroc
+
+		annotation SummarizationSetBy = User
+
+	column fusion_without_this
+		dataType: double
+		formatString: 0.000
+		lineageTag: cd679dae-a989-58ac-bda8-0d554d5d7adb
+		summarizeBy: none
+		sourceColumn: fusion_without_this
+
+		annotation SummarizationSetBy = User
+
+	column importance_delta
+		dataType: double
+		formatString: 0.000
+		lineageTag: d20c335a-9e2d-5523-888f-75b913caf305
+		summarizeBy: none
+		sourceColumn: importance_delta
+
+		annotation SummarizationSetBy = User
+
+	partition 'Feature Importance-Embedded' = m
+		mode: import
+		source =
+				let
+				    Source = Csv.Document(Binary.FromText("YnJhbmNoLHNpbmdsZV9icmFuY2hfb3ZlcmFsbF9hdXJvYyxmdXNpb25fd2l0aG91dF90aGlzLGltcG9ydGFuY2VfZGVsdGEKRElOT3YyIFJlZ2lvbi1Bd2FyZSwwLjc1MDMsMC43NDExLDAuMDE5NwpESU5PdjIgUGF0Y2ggTWVtb3J5LDAuNzI0NCwwLjc0NzIsMC4wMTM3CkRJTk92MiBQYXRjaE1lbW9yeSAoZHVwKSwwLjcyNDQsMC43NDcyLDAuMDEzNwpHbG9iYWwgSW1hZ2UtU3RhdCAocHJveHkpLDAuNjU0OCwwLjcxNzgsMC4wNDMxCkRJTk92MiBDb21wb3NpdGlvbiBIaXN0LDAuNTc1NywwLjc3MzcsLTAuMDEyOQo=", BinaryEncoding.Base64), [Delimiter=",", Encoding=65001, QuoteStyle=QuoteStyle.Csv]),
+				    Promoted = Table.PromoteHeaders(Source, [PromoteAllScalars=true]),
+				    Typed = Table.TransformColumnTypes(Promoted, {{"branch", type text}, {"single_branch_overall_auroc", type number}, {"fusion_without_this", type number}, {"importance_delta", type number}})
+				in
+				    Typed
+
+	annotation PBI_ResultType = Table
+
