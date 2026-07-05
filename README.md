@@ -24,41 +24,34 @@ Unsupervised logical and structural anomaly detection on the **MVTec LOCO AD** b
 
 ![Dashboard preview](assets/dashboard_preview.png)
 
-## Updated v2 Results
-
-| Result | Value |
-|---|---:|
-| Best observed v2 method | Fusion Max |
-| Best observed overall AUROC | 82.7% |
-| Pre-specified main fusion | Best Fusion / mean fusion |
-| Pre-specified fusion overall AUROC | 81.1% |
-| Logical AUROC | 76.9% |
-| Structural AUROC | 90.3% |
-| Backbone | Frozen DINOv2-small-v2crop336 |
-| Training required | None |
-| Compute | Free-tier Colab T4 |
-| Evaluation | 3 seeds, mean ± std reported |
-
----
-
-## Main Contribution
-
-We audited our original v1 anomaly detection pipeline, found four design flaws, fixed them in v2, and improved the system from **76.1% overall AUROC** to **82.7% overall AUROC** while keeping the method lightweight, explainable, and reproducible.
-
-The project does not claim to beat state-of-the-art methods such as SALAD or CSAD. Instead, the contribution is an honest engineering improvement story:
-
-> v1 pipeline → flaw audit → v2 fixes → measurable improvement → interactive explainability dashboard.
-
----
-
 ## Problem
 
-Industrial anomaly detection is difficult because models are usually trained only on defect-free images. At test time, the system must detect both:
+Industrial anomaly detection is challenging because models are usually trained only on normal, defect-free images. At test time, the system must detect both visible physical defects and harder logical mistakes.
 
-- **Structural anomalies:** scratches, dents, contamination, cracks, deformations.
-- **Logical anomalies:** missing, extra, swapped, or misplaced components, where every local region may still look visually normal.
+This project focuses on two anomaly types:
 
-This project uses the **MVTec LOCO AD** dataset, which contains five industrial object categories:
+- **Structural anomalies:** visible local defects such as scratches, dents, contamination, deformation, or damaged parts.
+- **Logical anomalies:** missing, extra, misplaced, or wrongly arranged components where each individual part may still look visually normal.
+
+## What This Project Does
+
+This project builds a complete anomaly-inspection pipeline:
+
+1. Audits and preprocesses the MVTec LOCO AD dataset.
+2. Performs EDA to understand defect size, location, category variation, and visual complexity.
+3. Extracts frozen DINOv2-small patch features.
+4. Builds multiple anomaly-scoring branches.
+5. Combines detector scores through fusion.
+6. Performs branch-level feature selection.
+7. Evaluates results by category and anomaly type.
+8. Presents the results in an interactive dashboard.
+
+
+## Dataset
+
+This project uses the **MVTec LOCO AD** dataset, which is designed for logical and structural anomaly detection.
+
+The five evaluated categories are:
 
 - `breakfast_box`
 - `juice_bottle`
@@ -66,252 +59,77 @@ This project uses the **MVTec LOCO AD** dataset, which contains five industrial 
 - `screw_bag`
 - `splicing_connectors`
 
----
+The raw dataset is not included in this repository. It must be downloaded separately from the official MVTec source.
 
-## v1 → v2: The Four Flaws We Fixed
-
-| # | v1 problem | v2 fix |
-|---|---|---|
-| 1 | Letterbox padding was fed into DINOv2, so many patch tokens represented blank padding instead of product content. | Crop the content box before feature extraction using saved resize metadata. |
-| 2 | One global memory bank, vocabulary, histogram statistics, and fusion normalization were shared across all categories. | Fit memory banks, vocabularies, histogram statistics, and fusion normalization per category. |
-| 3 | Features were re-extracted multiple times and nearest-neighbour search ran on CPU. | Use single-pass feature caching and GPU nearest-neighbour search. |
-| 4 | PatchCore and DINOv2 PatchMemory were effectively duplicate branches. | Differentiate them: PatchCore-style uses k=1/top-1%; PatchMemory uses k=3/top-5%. |
-
-These changes improved both score and stability. Structural anomaly detection became especially strong, reaching **90.3% AUROC**.
-
----
 
 ## Method Overview
 
-The system uses a frozen **DINOv2-small Vision Transformer** as a feature extractor. No task-specific neural network training is performed. The model only uses normal training images to build reference statistics and memory banks.
+The project compares several lightweight anomaly-scoring branches.
 
-Pipeline:
-
-1. Load MVTec LOCO AD images.
-2. Apply deterministic preprocessing.
-3. Crop content region to remove letterbox padding.
-4. Extract frozen DINOv2 patch tokens.
-5. Score anomalies using multiple lightweight branches.
-6. Normalize scores using validation/good only.
-7. Fuse scores and produce image-level AUROC and anomaly heatmaps.
-
----
-
-## Detection Branches
-
-| Branch | Purpose |
+| Method | Main Idea |
 |---|---|
-| PatchCore-style | k=1 nearest-neighbour distance with top-1% aggregation; strong for structural anomalies. |
-| DINOv2 PatchMemory | k=3 mean neighbour distance with top-5% aggregation; broader patch-level coverage. |
-| GridAware DINOv2 | Region-aware patch comparison; preserves spatial layout sensitivity. |
-| Composition Histogram | Bag-of-visual-words composition statistics; helps logical anomaly detection. |
-| EfficientAD-inspired proxy | Lightweight global image-stat baseline; included as a non-DINOv2 reference branch. |
-| Fusion Max | Best observed v2 fusion result. |
-| Best Fusion / Mean Fusion | Pre-specified main fusion result. |
+| Global Image-Stat Proxy | Uses whole-image statistics such as intensity, color, and edge information. |
+| DINOv2 Patch Memory | Stores normal patch embeddings and scores test patches by nearest-neighbor distance. |
+| DINOv2 Region-Aware Memory | Compares patches with normal patches from corresponding spatial regions. |
+| DINOv2 Composition Histogram | Represents images using distributions of DINOv2 visual words. |
+| Fusion | Combines normalized detector scores into one anomaly score. |
 
----
+The strongest results come from fusion and region-aware DINOv2 patch memory.
 
-## Dashboard
 
-The interactive dashboard is the main presentation artifact.
+## Key Results
 
-Live dashboard:
+The dashboard compares individual detectors and fusion configurations using image-level AUROC.
 
-https://az-main.github.io/Data-Analytics-Lab-Project/
-
-Local dashboard file:
-
-```text
-09_dashboard/dashboard.html
-```
-
-GitHub Pages dashboard file:
-
-```text
-docs/index.html
-```
-
-The dashboard includes:
-
-- Hero KPI summary
-- Full pipeline explanation
-- Four v1 flaws and v2 fixes
-- v1 vs v2 comparison
-- Results leaderboard
-- Per-category analysis
-- Feature selection analysis
-- EDA figures
-- Anomaly heatmaps
-- Honest comparison with published methods
-- Limitations and future work
-
----
+| Finding | Interpretation |
+|---|---|
+| Fusion is strongest overall | Combining complementary detector scores performs better than relying on one branch. |
+| Region-Aware Memory is the strongest individual detector | Spatial constraints improve DINOv2 patch-memory scoring. |
+| Patch Memory is useful for local defects | Nearest-neighbor patch scoring captures structural abnormality. |
+| Global Image-Stat is weak alone but useful in fusion | Simple global statistics provide complementary information. |
+| Composition Histogram underperforms | Global visual-word histograms lose important spatial details. |
 
 ## Repository Structure
 
 ```text
-.
-├── 00_project_planning/
-│   └── Planning notes, roadmap, peer review, context, and submission guide
-│
-├── 01_notebooks/
-│   ├── loco_project_utils.py
-│   └── loco_v2_improvements.py
-│
-├── 02_audit_reproducibility/
-│   └── Resize metadata, leakage audit, hashes, preprocessing records
-│
-├── 04_probe_results/
-│   └── EDA figures, probe results, and analysis outputs
-│
-├── 05_baselines/
-│   └── Baseline scores, maps, and configs
-│
-├── 06_method_results/
-│   ├── CompositionHistogram/
-│   ├── DINOv2_PatchMemory/
-│   ├── Fusion/
-│   ├── GridAware_DINOv2/
-│   ├── Qualitative/
-│   └── Final_Evaluation/
-│       ├── main_results_table.csv
-│       ├── per_category_results_table.csv
-│       ├── multiseed_summary.csv
-│       └── v2_run_config.json
-│
-├── 07_paper_draft/
-│   └── Report, slides, figures, and document builders
-│
-├── 09_dashboard/
-│   ├── dashboard.html
-│   ├── build_competition_dashboard.py
-│   └── LOCO_Anomaly_Inspector_PowerBI/
-│
-├── docs/
-│   └── index.html
-│
-├── Run_DINOv2_Colab.ipynb
-├── requirements.txt
-└── README.md
-```
+Data-Analytics-Lab-Project/
+|
+|-- 00_project_planning/
+|   Project planning, roadmap, review notes, and submission guides
+|
+|-- 01_notebooks/
+|   Staged experimental notebooks and reusable project utilities
+|
+|-- 02_audit_reproducibility/
+|   Dataset audits, preprocessing metadata, environment checks, and reproducibility files
+|
+|-- 04_probe_results/
+|   EDA figures, statistical summaries, and component-probe outputs
+|
+|-- 05_baselines/
+|   Baseline detector scores, runtime logs, and anomaly maps
+|
+|-- 06_method_results/
+|   DINOv2 method outputs, fusion results, final evaluation tables, and qualitative analysis
+|
+|-- 07_paper_draft/
+|   Report, presentation, exported figures, and document-generation scripts
+|
+|-- 09_dashboard/
+|   Dashboard source files, result tables, dashboard data, and build scripts
+|
+|-- docs/
+|   GitHub Pages deployment for the live dashboard
+|
+|-- Run_DINOv2_Colab.ipynb
+|   GPU notebook for running the real DINOv2 pipeline
+|
+|-- requirements.txt
+|   Python dependencies
+|
+`-- README.md
 
----
 
-## Reproducibility
+Small note: because this block contains a code fence inside a code fence, when you paste into GitHub, paste it normally into README. It will render correctly.
 
-The v2 pipeline records key provenance in:
-
-```text
-06_method_results/Final_Evaluation/v2_run_config.json
-```
-
-The multi-seed summary is stored in:
-
-```text
-06_method_results/Final_Evaluation/multiseed_summary.csv
-```
-
-Important reproducibility choices:
-
-- Frozen DINOv2-small backbone
-- Content crop before feature extraction
-- Per-category memory banks and vocabularies
-- Per-category fusion normalization
-- GPU nearest-neighbour search
-- Three seeds: 42, 7, 2026
-- Validation/good-only normalization and thresholding
-- No test-label tuning
-
----
-
-## How to Run the Colab Pipeline
-
-Open:
-
-```text
-Run_DINOv2_Colab.ipynb
-```
-
-In Google Colab:
-
-1. Set runtime to **T4 GPU**.
-2. Mount Google Drive.
-3. Make sure the `Phase 1` dataset folder is visible to Colab.
-4. Run the smoke test first.
-5. If the smoke test passes, run the full v2 pipeline.
-6. The notebook exports result files into `05_baselines/` and `06_method_results/`.
-
-The raw dataset is not stored in this repository.
-
----
-
-## How to Regenerate the Dashboard
-
-From the repo root:
-
-```bash
-cd 09_dashboard
-python build_competition_dashboard.py
-```
-
-This regenerates:
-
-```text
-09_dashboard/dashboard.html
-```
-
-For GitHub Pages, copy the dashboard to:
-
-```text
-docs/index.html
-```
-
----
-
-## Dataset
-
-This project uses **MVTec LOCO AD**.
-
-The raw images are external and read-only. They are not committed to GitHub.
-
-The repository contains:
-
-- Code
-- Results
-- Evaluation tables
-- Visualizations
-- Dashboard
-- Report and slide materials
-
-The repository does not contain:
-
-- Raw dataset images
-- Feature cache
-- Large result zip files
-
----
-
-## Honest Limitations
-
-- Logical anomalies remain harder than structural anomalies.
-- Pushpins logical anomalies are especially challenging because patch-level nearest-neighbour scoring does not directly count object components.
-- The method is lightweight and training-free, but methods above 90% overall AUROC usually use task-specific training, component segmentation, or stronger supervision.
-- Fusion Max is reported as the best observed v2 method; the safer pre-specified main fusion result is Best Fusion / mean fusion.
-
----
-
-## Method References
-
-This project is inspired by:
-
-- MVTec LOCO AD dataset
-- DINOv2 self-supervised visual features
-- PatchCore-style memory-bank anomaly detection
-- EfficientAD-style lightweight anomaly detection
-- Component-aware logical anomaly detection research such as CSAD and SALAD
-
----
-
-## Notes
-
-Start with the live dashboard for the clearest overview of the project. The main reproducibility files are `Run_DINOv2_Colab.ipynb`, `v2_run_config.json`, and `multiseed_summary.csv`.
+After this, the next section should be **Important Files**.
