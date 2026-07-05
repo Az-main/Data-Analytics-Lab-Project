@@ -8,7 +8,7 @@
 
 Unsupervised logical and structural anomaly detection on the **MVTec LOCO AD** benchmark using frozen **DINOv2-small** patch features, memory-based scoring, feature selection, and an interactive dashboard.
 
-# LOCO Anomaly Inspector
+
 
 Interactive, reproducible anomaly detection system for **logical and structural anomaly detection** on the **MVTec LOCO AD** benchmark.
 
