@@ -1,12 +1,28 @@
+1. Project title
+2. One-line project summary
+3. Live dashboard link
+4. Short highlights
+5. Dashboard screenshot
+
 # LOCO Anomaly Inspector
 
-Interactive, reproducible anomaly detection system for **logical and structural anomaly detection** on the **MVTec LOCO AD** benchmark.
+Unsupervised logical and structural anomaly detection on the **MVTec LOCO AD** benchmark using frozen **DINOv2-small** patch features, memory-based scoring, feature selection, and an interactive dashboard.
 
-Live dashboard: https://az-main.github.io/Data-Analytics-Lab-Project/
-
-Repository: https://github.com/Az-main/Data-Analytics-Lab-Project
+[Open the Live Dashboard](https://az-main.github.io/Data-Analytics-Lab-Project/)
 
 ---
+
+## Highlights
+
+- Detects both **structural anomalies** and harder **logical anomalies**.
+- Uses frozen **DINOv2-small** patch features with no task-specific neural-network training.
+- Evaluates patch-memory, region-aware memory, composition-histogram, global-stat, and fusion-based anomaly scores.
+- Includes leakage-aware preprocessing, EDA, feature selection, per-category evaluation, and explainability visuals.
+- Provides a self-contained dashboard for exploring results and model behavior.
+
+---
+
+![Dashboard preview](assets/dashboard_preview.png)
 
 ## Updated v2 Results
 
